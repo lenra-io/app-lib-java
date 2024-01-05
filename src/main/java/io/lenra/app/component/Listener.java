@@ -1,4 +1,4 @@
-package io.lenra.applibjava.component;
+package io.lenra.app.component;
 
 import java.util.Map;
 

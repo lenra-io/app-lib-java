@@ -1,7 +1,7 @@
-package io.lenra.applibjava.request;
+package io.lenra.app.request;
 
 import io.lenra.api.ManifestSchema;
-import io.lenra.applibjava.LenraApplication;
+import io.lenra.app.LenraApplication;
 
 public class ManifestRequest extends AppRequest<ManifestSchema> {
 

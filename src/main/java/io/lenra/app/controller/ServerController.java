@@ -1,4 +1,4 @@
-package io.lenra.applibjava.controller;
+package io.lenra.app.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import io.lenra.applibjava.LenraApplication;
-import io.lenra.applibjava.request.AppRequest;
+import io.lenra.app.LenraApplication;
+import io.lenra.app.request.AppRequest;
 
 @RestController
 public class ServerController {

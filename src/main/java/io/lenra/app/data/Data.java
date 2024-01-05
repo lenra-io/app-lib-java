@@ -1,4 +1,4 @@
-package io.lenra.applibjava.data;
+package io.lenra.app.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

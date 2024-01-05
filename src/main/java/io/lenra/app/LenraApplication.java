@@ -1,4 +1,4 @@
-package io.lenra.applibjava;
+package io.lenra.app;
 
 import java.util.Collections;
 import java.util.Map;

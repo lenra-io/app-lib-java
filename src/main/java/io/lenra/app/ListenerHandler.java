@@ -1,4 +1,4 @@
-package io.lenra.applibjava;
+package io.lenra.app;
 
 import java.lang.reflect.Type;
 import java.util.function.Function;
@@ -6,7 +6,7 @@ import java.util.function.Function;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.lenra.applibjava.request.ListenerRequest;
+import io.lenra.app.request.ListenerRequest;
 
 
 public abstract class ListenerHandler<P> {

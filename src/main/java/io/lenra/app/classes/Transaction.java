@@ -1,4 +1,4 @@
-package io.lenra.applibjava.classes;
+package io.lenra.app.classes;
 
 import io.lenra.api.internal.ApiException;
 import io.lenra.api.internal.client.DataApi;

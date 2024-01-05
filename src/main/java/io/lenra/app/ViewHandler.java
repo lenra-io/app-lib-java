@@ -1,4 +1,4 @@
-package io.lenra.applibjava;
+package io.lenra.app;
 
 import java.lang.reflect.Type;
 import java.util.function.Function;
@@ -7,7 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.lenra.applibjava.request.ViewRequest;
+import io.lenra.app.request.ViewRequest;
 
 
 public abstract class ViewHandler<D, P> {

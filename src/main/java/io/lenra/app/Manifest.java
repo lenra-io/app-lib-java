@@ -1,10 +1,10 @@
-package io.lenra.applibjava;
+package io.lenra.app;
 
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-import io.lenra.applibjava.component.View;
+import io.lenra.app.component.View;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Manifest {
