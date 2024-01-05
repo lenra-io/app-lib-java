@@ -1,3 +1,6 @@
+# Ignore gradle files
+/.gradle/
+
 # Compiled class file
 *.class
 
@@ -30,7 +33,7 @@ target/
 !**/src/test/**/target/
 
 # Ignore Lenra API files
-**/src/main/**/api/
+/api/
 
 ### STS ###
 .apt_generated
