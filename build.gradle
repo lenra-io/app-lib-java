@@ -30,9 +30,9 @@ dependencies {
 }
 
 group = 'io.lenra'
-version = '1.0-SNAPSHOT'
+version = '1.0.0-SNAPSHOT'
 description = 'app'
-java.sourceCompatibility = JavaVersion.VERSION_1_8
+java.sourceCompatibility = JavaVersion.VERSION_17
 
 publishing {
     publications {
@@ -51,7 +51,7 @@ tasks.withType(Javadoc) {
 }
 
 jsonSchema2Pojo {
-    source = files("${project.rootDir}/api/manifest.schema.json")
+    source = files("${project.rootDir}/api/responses/view.schema.json")
     targetPackage = 'io.lenra.api'
     refFragmentPathDelimiters = "#/"
 }
