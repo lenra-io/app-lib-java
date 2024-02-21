@@ -51,7 +51,7 @@ tasks.withType(Javadoc) {
 }
 
 jsonSchema2Pojo {
-    source = files("${project.rootDir}/api/responses/view.schema.json")
-    targetPackage = 'io.lenra.api'
+    source = files("${project.rootDir}/api/manifest.schema.json", "${project.rootDir}/api/requests/app.schema.json", "${project.rootDir}/api/responses/view.schema.json")
+    targetPackage = 'io.lenra.api.generated'
     refFragmentPathDelimiters = "#/"
 }
