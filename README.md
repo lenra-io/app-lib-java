@@ -15,3 +15,10 @@ wget https://github.com/lenra-io/api/releases/latest/download/load-api.sh -O - -
 ## With curl
 curl -fsSL https://github.com/lenra-io/api/releases/latest/download/load-api.sh | bash
 ```
+
+
+### Build
+
+```bash
+./gradlew build
+```
