@@ -47,6 +47,7 @@ public class Manifest {
     public static class Route {
         private String path;
         private View view;
+        private List<String> roles;
 
         public Route() {
         }
@@ -62,6 +63,14 @@ public class Manifest {
 
         public View getView() {
             return view;
+        }
+
+        public List<String> getRoles() {
+            return roles;
+        }
+
+        public void setRoles(List<String> roles) {
+            this.roles = roles;
         }
     }
 }

@@ -1,12 +1,12 @@
 package io.lenra.app.request;
 
-import io.lenra.api.ManifestSchema;
 import io.lenra.app.LenraApplication;
+import io.lenra.app.Manifest;
 
-public class ManifestRequest extends AppRequest<ManifestSchema> {
+public class ManifestRequest extends AppRequest<Manifest> {
 
     @Override
-    public ManifestSchema handle(LenraApplication application) {
+    public Manifest handle(LenraApplication application) {
         return application.getManifest();
     }
 

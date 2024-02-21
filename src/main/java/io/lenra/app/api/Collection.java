@@ -1,19 +1,22 @@
-package io.lenra.app.classes;
+package io.lenra.app.api;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.internal.LinkedTreeMap;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 
 import io.lenra.api.internal.ApiException;
 import io.lenra.api.internal.client.model.DataDocument;
 import io.lenra.api.internal.client.model.FindDocumentsRequest;
 import io.lenra.api.internal.client.model.UpdateManyDocumentsRequest;
+import jakarta.inject.Inject;
 
 public class Collection {
+    @Inject
+    private ObjectMapper mapper;
     private final AbstractDataApi api;
     private final String name;
 
@@ -31,17 +34,20 @@ public class Collection {
     }
 
     public DataDocument updateDoc(Object doc) throws ApiException {
-        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-
-        String json = gson.toJson(doc, LinkedTreeMap.class);
+        String json;
+        try {
+            json = mapper.writeValueAsString(doc);
+        } catch (JsonProcessingException e) {
+            throw new ApiException(e);
+        }
 
         DataDocument dataDoc = null;
         try {
             dataDoc = DataDocument.fromJson(json);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new ApiException(e);
         }
-        
+
         return api.getApi().updateDocumentById(this.name, dataDoc.getId(), dataDoc);
     }
 
@@ -49,7 +55,8 @@ public class Collection {
         return api.getApi().deleteDocumentById(this.name, id);
     }
 
-    public List<Map<String, Object>> find(Map<String, Object> query, Map<String, Object> projection) throws ApiException {
+    public List<Map<String, Object>> find(Map<String, Object> query, Map<String, Object> projection)
+            throws ApiException {
         FindDocumentsRequest req = new FindDocumentsRequest();
         req.setQuery(query);
         req.setProjection(projection);

@@ -1,4 +1,4 @@
-package io.lenra.app;
+package io.lenra.app.handlers;
 
 import java.lang.reflect.Type;
 import java.util.function.Function;

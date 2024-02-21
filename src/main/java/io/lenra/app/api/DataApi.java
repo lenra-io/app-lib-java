@@ -1,4 +1,4 @@
-package io.lenra.app.classes;
+package io.lenra.app.api;
 
 import io.lenra.api.internal.ApiClient;
 import io.lenra.api.internal.ApiException;

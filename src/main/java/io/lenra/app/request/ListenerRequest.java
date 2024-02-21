@@ -2,9 +2,6 @@ package io.lenra.app.request;
 
 import java.io.IOException;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -15,8 +12,10 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import io.lenra.app.LenraApplication;
-import io.lenra.app.ListenerHandler;
-import io.lenra.app.classes.Api;
+import io.lenra.app.api.Api;
+import io.lenra.app.handlers.ListenerHandler;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import lombok.Getter;
 
 @JsonDeserialize(using = ListenerRequest.ListenerRequestDeserializer.class)
@@ -43,11 +42,11 @@ public class ListenerRequest<P> extends AppRequest<Object> {
         return handler.handle(this);
     }
 
-    @Component
+    @Named
     public static class ListenerRequestDeserializer extends StdDeserializer<ListenerRequest<?>> {
-        @Autowired
+        @Inject
         private LenraApplication app;
-        @Autowired
+        @Inject
         private ObjectMapper mapper;
 
         public ListenerRequestDeserializer() {

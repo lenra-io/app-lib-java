@@ -1,4 +1,4 @@
-package io.lenra.app.classes;
+package io.lenra.app.api;
 
 import java.util.HashMap;
 import java.util.Map;

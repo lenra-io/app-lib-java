@@ -20,13 +20,17 @@ repositories {
 }
 
 dependencies {
-    api libs.org.springframework.boot.spring.boot.starter.web
-    api libs.org.projectlombok.lombok
-    api libs.com.google.code.gson.gson
-    api libs.commons.lang.commons.lang
+    // api libs.commons.lang.commons.lang
     api libs.com.fasterxml.jackson.core.jackson.databind
     api libs.com.github.lenra.io.internal.api.client.lib.java
+    api 'jakarta.inject:jakarta.inject-api:2.0.0'
     testImplementation libs.junit.junit
+
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+	annotationProcessor 'org.projectlombok:lombok:1.18.30'
+	
+	testCompileOnly 'org.projectlombok:lombok:1.18.30'
+	testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
 }
 
 group = 'io.lenra'
@@ -37,10 +41,15 @@ java.sourceCompatibility = JavaVersion.VERSION_17
 publishing {
     publications {
         maven(MavenPublication) {
-            from(components.java)
+            groupId project.group
+            artifactId 'app'
+            version project.version
+
+            from components.java
         }
     }
 }
+
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
