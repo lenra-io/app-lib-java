@@ -86,7 +86,7 @@ ${content}
 }
 
 function generateFields(schema: any, path: string): { content: string, imports: string[] } {
-  const fields = [];
+  const fields:string[] = [];
   const imports: Set<string> = new Set();
   if (schema.properties) {
     Object.entries(schema.properties).forEach(([propertyName, propertySchema]) => {
