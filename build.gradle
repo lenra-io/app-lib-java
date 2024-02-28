@@ -5,7 +5,7 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
-    id "org.jsonschema2pojo" version "1.2.1"
+    // id "org.jsonschema2pojo" version "1.2.1"
 }
 
 repositories {
@@ -59,8 +59,8 @@ tasks.withType(Javadoc) {
     options.encoding = 'UTF-8'
 }
 
-jsonSchema2Pojo {
-    source = files("${project.rootDir}/api/manifest.schema.json", "${project.rootDir}/api/requests/app.schema.json", "${project.rootDir}/api/responses/view.schema.json")
-    targetPackage = 'io.lenra.api.generated'
-    refFragmentPathDelimiters = "#/"
-}
+// jsonSchema2Pojo {
+//     source = files("${project.rootDir}/api/manifest.schema.json", "${project.rootDir}/api/requests/app.schema.json", "${project.rootDir}/api/responses/view.schema.json")
+//     targetPackage = 'io.lenra.api.generated'
+//     refFragmentPathDelimiters = "#/"
+// }
