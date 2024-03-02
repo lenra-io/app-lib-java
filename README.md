@@ -16,9 +16,21 @@ wget https://github.com/lenra-io/api/releases/latest/download/load-api.sh -O - -
 curl -fsSL https://github.com/lenra-io/api/releases/latest/download/load-api.sh | bash
 ```
 
+The classes are generated at build time with Gradle and Bun.
+You can also generate them manually:
+
+```bash
+./gradlew generateApiClasses
+```
 
 ### Build
 
 ```bash
 ./gradlew build
+```
+
+### Public to Maven Local
+
+```bash
+./gradlew publishToMavenLocal
 ```

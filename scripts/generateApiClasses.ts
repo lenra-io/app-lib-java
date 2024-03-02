@@ -1,14 +1,19 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from "fs";
 import { resolve, dirname } from "path";
 
-const basePackage = "io.lenra.app.gen";
-const basePath = "src/main/java/";
+
+// TODO: generate construtors https://projectlombok.org/features/constructor
+// TODO: manage builders https://projectlombok.org/features/Builder
+
+
+const basePackage = "io.lenra.api";
+const basePath = process.argv[2] ?? "build/test/lenraApi";
 
 const baseIndentation = "  ";
 
 const packagePath = resolve(basePath, ...basePackage.split("."));
 
-rmSync(packagePath, { recursive: true, force: true });
+rmSync(basePath, { recursive: true, force: true });
 
 const langPackage = "java.lang";
 

@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-import io.lenra.app.gen.components.View;
+import io.lenra.api.components.View;
 
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
