@@ -1,6 +1,7 @@
 package io.lenra.app.gen.components.styles;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
@@ -9,11 +10,11 @@ public class InputBorder {
   // Fields
   private BorderRadius borderRadius;
   private BorderSide borderSide;
-  private Type  type;
+  private InputBorder.Type  type;
 
   // Sub elements
 
-  public enum Type  {
+  public static enum Type  {
     // Values
     @JsonProperty("underline")
     UNDERLINE,

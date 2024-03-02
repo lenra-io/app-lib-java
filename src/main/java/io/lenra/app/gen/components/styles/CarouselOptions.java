@@ -1,6 +1,7 @@
 package io.lenra.app.gen.components.styles;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
@@ -13,7 +14,7 @@ public class CarouselOptions {
   private Duration autoPlayInterval;
   private Boolean enableInfiniteScroll;
   private Boolean enlargeCenterPage;
-  private EnlargeStrategy  enlargeStrategy;
+  private CarouselOptions.EnlargeStrategy  enlargeStrategy;
   private Double height;
   private Integer initialPage;
   private Boolean pauseAutoPlayOnTouch;
@@ -23,7 +24,7 @@ public class CarouselOptions {
 
   // Sub elements
 
-  public enum EnlargeStrategy  {
+  public static enum EnlargeStrategy  {
     // Values
     @JsonProperty("scale")
     SCALE,

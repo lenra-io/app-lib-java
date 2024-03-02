@@ -8,13 +8,13 @@ import lombok.Data;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class StatusSticker implements LenraComponent {
   // Fields
-  private Status  status;
+  private StatusSticker.Status  status;
   @JsonProperty("_type")
   private final String type = "statusSticker";
 
   // Sub elements
 
-  public enum Status  {
+  public static enum Status  {
     // Values
     @JsonProperty("success")
     SUCCESS,

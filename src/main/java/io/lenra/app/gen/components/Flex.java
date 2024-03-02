@@ -7,19 +7,19 @@ import io.lenra.app.gen.components.styles.Padding;
 import io.lenra.app.gen.components.styles.TextBaseline;
 import io.lenra.app.gen.components.styles.TextDirection;
 import io.lenra.app.gen.components.styles.VerticalDirection;
-import java.util.List;
+import java.util.ArrayList;
 import lombok.Data;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Flex implements LenraComponent {
   // Fields
-  private List<LenraComponent> children;
-  private CrossAxisAlignment  crossAxisAlignment;
+  private ArrayList<LenraComponent> children;
+  private Flex.CrossAxisAlignment  crossAxisAlignment;
   private Direction direction;
   private Boolean fillParent;
   private TextDirection horizontalDirection;
-  private MainAxisAlignment  mainAxisAlignment;
+  private Flex.MainAxisAlignment  mainAxisAlignment;
   private Padding padding;
   private Boolean scroll;
   private Double spacing;
@@ -30,7 +30,7 @@ public class Flex implements LenraComponent {
 
   // Sub elements
 
-  public enum CrossAxisAlignment  {
+  public static enum CrossAxisAlignment  {
     // Values
     @JsonProperty("start")
     START,
@@ -44,7 +44,7 @@ public class Flex implements LenraComponent {
     BASELINE;
   }
 
-  public enum MainAxisAlignment  {
+  public static enum MainAxisAlignment  {
     // Values
     @JsonProperty("start")
     START,

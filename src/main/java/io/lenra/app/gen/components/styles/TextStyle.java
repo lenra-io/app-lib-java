@@ -1,8 +1,8 @@
 package io.lenra.app.gen.components.styles;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import java.util.List;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.ArrayList;
 import lombok.Data;
 
 @Data
@@ -15,20 +15,20 @@ public class TextStyle {
   private Text Decoration Style decorationStyle;
   private Double decorationThickness;
   private String fontFamily;
-  private List<String> fontFamilyFallback;
+  private ArrayList<String> fontFamilyFallback;
   private Double fontSize;
-  private FontStyle  fontStyle;
-  private FontWeight  fontWeight;
+  private TextStyle.FontStyle  fontStyle;
+  private TextStyle.FontWeight  fontWeight;
   private Double height;
   private Double letterSpacing;
-  private Overflow  overflow;
-  private List<BoxShadow> shadows;
+  private TextStyle.Overflow  overflow;
+  private ArrayList<BoxShadow> shadows;
   private TextBaseline textBaseline;
   private Double wordSpacing;
 
   // Sub elements
 
-  public enum FontStyle  {
+  public static enum FontStyle  {
     // Values
     @JsonProperty("italic")
     ITALIC,
@@ -36,7 +36,7 @@ public class TextStyle {
     NORMAL;
   }
 
-  public enum FontWeight  {
+  public static enum FontWeight  {
     // Values
     @JsonProperty("bold")
     BOLD,
@@ -62,7 +62,7 @@ public class TextStyle {
     W900;
   }
 
-  public enum Overflow  {
+  public static enum Overflow  {
     // Values
     @JsonProperty("clip")
     CLIP,

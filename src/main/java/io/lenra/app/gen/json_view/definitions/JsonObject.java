@@ -1,4 +1,4 @@
-package io.lenra.app.gen.json-view.definitions;
+package io.lenra.app.gen.json_view.definitions;
 
 import io.lenra.app.gen.ViewResponse;
 import java.util.HashMap;

@@ -7,7 +7,7 @@ import io.lenra.app.gen.components.styles.TextDirection;
 import io.lenra.app.gen.components.styles.VerticalDirection;
 import io.lenra.app.gen.components.styles.WrapAlignment;
 import io.lenra.app.gen.components.styles.WrapCrossAlignment;
-import java.util.List;
+import java.util.ArrayList;
 import lombok.Data;
 
 @Data
@@ -15,7 +15,7 @@ import lombok.Data;
 public class Wrap implements LenraComponent {
   // Fields
   private WrapAlignment alignment;
-  private List<LenraComponent> children;
+  private ArrayList<LenraComponent> children;
   private WrapCrossAlignment crossAxisAlignment;
   private Direction direction;
   private TextDirection horizontalDirection;

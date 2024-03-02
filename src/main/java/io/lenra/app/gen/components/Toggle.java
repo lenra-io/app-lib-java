@@ -11,7 +11,7 @@ public class Toggle implements LenraComponent {
   // Fields
   private Boolean autofocus;
   private Boolean disabled;
-  private DragStartBehavior  dragStartBehavior;
+  private Toggle.DragStartBehavior  dragStartBehavior;
   private String name;
   private Listener onPressed;
   private Double splashRadius;
@@ -22,7 +22,7 @@ public class Toggle implements LenraComponent {
 
   // Sub elements
 
-  public enum DragStartBehavior  {
+  public static enum DragStartBehavior  {
     // Values
     @JsonProperty("start")
     START,

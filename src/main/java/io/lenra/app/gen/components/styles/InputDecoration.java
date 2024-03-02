@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.lenra.app.gen.components.Icon;
 import io.lenra.app.gen.components.LenraComponent;
 import java.util.HashMap;
-import java.util.HashMap;
 import lombok.Data;
 
 @Data

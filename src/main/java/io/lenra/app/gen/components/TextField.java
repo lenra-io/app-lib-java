@@ -2,7 +2,7 @@ package io.lenra.app.gen.components;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.lenra.app.gen.components.styles.autofillHints.Items;
+import io.lenra.app.gen.components.styles.AutofillHints;
 import io.lenra.app.gen.components.styles.DragStartBehavior;
 import io.lenra.app.gen.components.styles.MaxLengthEnforcement;
 import io.lenra.app.gen.components.styles.TextCapitalization;
@@ -11,7 +11,6 @@ import io.lenra.app.gen.components.styles.TextFieldStyle;
 import io.lenra.app.gen.components.styles.TextInputAction;
 import io.lenra.app.gen.components.styles.TextInputType;
 import io.lenra.app.gen.components.styles.ToolbarOptions;
-import java.util.List;
 import lombok.Data;
 
 @Data
@@ -19,7 +18,7 @@ import lombok.Data;
 public class TextField implements LenraComponent {
   // Fields
   private Boolean autocorrect;
-  private List<Items> autofillHints;
+  private AutofillHints autofillHints;
   private Boolean autofocus;
   private Listener buildCounter;
   private DragStartBehavior dragStartBehavior;

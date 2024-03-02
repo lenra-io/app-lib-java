@@ -1,7 +1,7 @@
 package io.lenra.app.gen.components.styles;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.lenra.app.gen.components.styles.borderRadius.definitions.Radius;
+import io.lenra.app.gen.components.styles.borderradius.definitions.Radius;
 import lombok.Data;
 
 @Data

@@ -1,6 +1,7 @@
 package io.lenra.app.gen.components.styles;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.lenra.app.gen.components.Image;
 import lombok.Data;
 
@@ -16,11 +17,11 @@ public class ToggleStyle {
   private Integer inactiveThumbColor;
   private Image inactiveThumbImage;
   private Integer inactiveTrackColor;
-  private MaterialTapTargetSize  materialTapTargetSize;
+  private ToggleStyle.MaterialTapTargetSize  materialTapTargetSize;
 
   // Sub elements
 
-  public enum MaterialTapTargetSize  {
+  public static enum MaterialTapTargetSize  {
     // Values
     @JsonProperty("padded")
     PADDED,

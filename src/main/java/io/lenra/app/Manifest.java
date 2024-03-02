@@ -4,7 +4,8 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
-import io.lenra.app.component.View;
+import io.lenra.app.gen.components.View;
+
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Manifest {

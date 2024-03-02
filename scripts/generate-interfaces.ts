@@ -41,7 +41,7 @@ class ClassInfos {
   static base = {
     ...this.primitives,
     object: new ClassInfos(langPackage, "Object"),
-    list: new ClassInfos("java.util", "List"),
+    list: new ClassInfos("java.util", "ArrayList"),
     map: new ClassInfos("java.util", "HashMap"),
   }
   private static jacksonBase = {
@@ -95,6 +95,11 @@ class ClassInfos {
 
   formatName(): string {
     let name = this.name;
+    let parent = this.parent;
+    while (parent instanceof ClassInfos) {
+      name = `${parent.name}.${name}`;
+      parent = parent.parent;
+    }
     if (this.subTypes) {
       name += `<${this.subTypes.map(t => t.formatName()).join(", ")}>`;
     }
@@ -132,8 +137,12 @@ abstract class Element extends ClassInfos {
     return this.parent instanceof ClassInfos ? this.parent.baseElement : this;
   }
 
+  protected addDefaultValues() {
+    this.children.forEach(c => c.addDefaultValues());
+  }
+
   addImport(def: ClassInfos) {
-    if (this.parent instanceof Class) {
+    if (this.parent instanceof Element) {
       this.parent.addImport(def)
     }
     else {
@@ -158,6 +167,7 @@ abstract class Element extends ClassInfos {
   }
 
   generate(): string {
+    this.addDefaultValues();
     return this.generateLines().join("\n") + "\n";
   }
 
@@ -168,11 +178,11 @@ abstract class Element extends ClassInfos {
       content.push(`package ${this.parent};`, "");
       if (this.imports.size > 0) {
         content.push(
-          ...[...this.imports]
+          ...new Set([...this.imports]
             // Filter same package imports
             .filter(i => i.baseElement.parent !== this.baseElement.parent && i.parent !== langPackage)
             .sort((a, b) => a.fullName.localeCompare(b.fullName))
-            .map(i => `import ${i.fullName};`),
+            .map(i => `import ${i.fullName};`)),
           "",
         );
       }
@@ -240,8 +250,6 @@ abstract class Element extends ClassInfos {
   }
 
   private static parseSchema(schema: any, ref: string, parent?: Element): ClassInfos | ConstValue {
-    console.log("Parsing schema for", ref);
-
     if (schema.enum) {
       return this.parseEnum(schema, ref, parent);
     }
@@ -253,12 +261,25 @@ abstract class Element extends ClassInfos {
           return ClassInfos.refs.map.clone([ClassInfos.primitives.string, ClassInfos.refs.object]);
         }
         // generate a sub class for the object
-        return this.parseClass(schema, ref, parent);
+        const element = this.parseClass(schema, ref, parent);
+        if (element.fields.size === 0)
+          element.extends = ClassInfos.refs.map.clone([ClassInfos.primitives.string, ClassInfos.refs.object]);
+        return element;
 
       case "array":
+        let generatedClass: Class | undefined;
+        if (schema.title) {
+          generatedClass = this.parseClass(schema, ref, parent);
+          parent = generatedClass;
+        }
         const subType = this.parseSchema(schema.items, `${ref}.items`, parent);
         if (subType instanceof ConstValue) throw new Error(`Invalid array type: ${ref}. Array items cannot be a const`);
-        return ClassInfos.refs.list.clone([subType]);
+        const array = ClassInfos.refs.list.clone([subType]);
+        if (generatedClass) {
+          generatedClass.extends = array;
+          return generatedClass;
+        }
+        return array;
 
       default:
 
@@ -290,7 +311,7 @@ abstract class Element extends ClassInfos {
 
     // Add the class to the sourceRefs
     this.sourceRefs[ref] = element;
-    if (parent) 
+    if (parent)
       parent.addChild(element);
     else
       this.files.push(element);
@@ -316,9 +337,6 @@ abstract class Element extends ClassInfos {
           element.addField(field);
         });
     }
-    else {
-      element.extends = ClassInfos.refs.map.clone([ClassInfos.primitives.string, ClassInfos.refs.object]);
-    }
 
     return element;
   }
@@ -332,7 +350,7 @@ abstract class Element extends ClassInfos {
     const element = new Interface(parent ?? packageName, schema.title ?? name, ref);
 
     this.sourceRefs[ref] = element;
-    if (parent) 
+    if (parent)
       parent.addChild(element);
     else
       this.files.push(element);
@@ -361,7 +379,7 @@ abstract class Element extends ClassInfos {
     const element = new Enum(parent ?? packageName, schema.title ?? name, ref);
 
     this.sourceRefs[ref] = element;
-    if (parent) 
+    if (parent)
       parent.addChild(element);
     else
       this.files.push(element);
@@ -381,7 +399,7 @@ abstract class Element extends ClassInfos {
     const name = packageParts.pop()!;
 
     return new ClassInfos(
-      packageParts.length > 0 ? `${basePackage}.${packageParts.join(".")}` : basePackage,
+      packageParts.length > 0 ? `${basePackage}.${packageParts.join(".").toLowerCase().replace(/[^a-z0-9.]/g, '_')}` : basePackage,
       `${name.substring(0, 1).toUpperCase()}${name.substring(1)}`
     );
   }
@@ -397,7 +415,7 @@ class Class extends Element {
     this.fields.add(field);
   }
 
-  generate(): string {
+  protected addDefaultValues(): void {
     if (this.extends === undefined) {
       this.addImport(ClassInfos.refs.jacksonJsonInclude);
       this.addAnnotation("@JsonInclude(JsonInclude.Include.NON_NULL)");
@@ -408,7 +426,8 @@ class Class extends Element {
     else {
       this.addImport(this.extends);
     }
-    return super.generate();
+
+    super.addDefaultValues();
   }
 
   protected generateContentLines(): string[] {
@@ -448,14 +467,14 @@ class Class extends Element {
 }
 
 class Interface extends Element {
-  private implementations: Set<Element>;
+  private implementations: Set<Element> = new Set();
 
   addImplementation(impl: Element) {
-    if (!this.implementations) this.implementations = new Set();
+    this.addImport(impl);
     this.implementations.add(impl);
   }
 
-  generate(): string {
+  protected addDefaultValues(): void {
     if (this.implementations?.size ?? 0 > 0) {
       const implementations = [...this.implementations];
       this.addImport(ClassInfos.jackson.jsonTypeInfo);
@@ -474,12 +493,12 @@ class Interface extends Element {
         } })`);
     }
 
-    return super.generate();
+    super.addDefaultValues();
   }
 
   generateBlockDeclaration(): string {
     let declaration = "public ";
-    if (this.parent instanceof Class) {
+    if (this.parent instanceof Element) {
       declaration += "static ";
     }
     declaration += `interface ${this.name}`;
@@ -498,12 +517,19 @@ class Enum extends Element {
   }
 
   generateBlockDeclaration(): string {
-    return `public enum ${this.name}`;
+    let declaration = "public ";
+    if (this.parent instanceof Element) {
+      declaration += "static ";
+    }
+    declaration += `enum ${this.name}`;
+
+    return declaration;
   }
 
-  generate(): string {
+  protected addDefaultValues(): void {
     this.addImport(ClassInfos.jackson.jsonProperty);
-    return super.generate();
+
+    super.addDefaultValues();
   }
 
   protected generateContentLines(): string[] {
