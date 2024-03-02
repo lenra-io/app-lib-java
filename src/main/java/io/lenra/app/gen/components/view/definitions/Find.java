@@ -1,7 +1,8 @@
 package io.lenra.app.gen.components.view.definitions;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import java.util.HashMap;
+import io.lenra.app.gen.data.Projection;
+import io.lenra.app.gen.data.Query;
 import lombok.Data;
 
 @Data
@@ -9,6 +10,6 @@ import lombok.Data;
 public class Find {
   // Fields
   private String coll;
-  private HashMap<String, Object> projection;
-  private HashMap<String, Object> query;
+  private Projection projection;
+  private Query query;
 }
