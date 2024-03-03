@@ -8,17 +8,14 @@ repositories {
     maven {
         url = uri('https://jitpack.io')
     }
-
-    maven {
-        url = uri('https://repo.maven.apache.org/maven2/')
-    }
+    mavenCentral()
 }
 
 dependencies {
-    api libs.com.fasterxml.jackson.core.jackson.databind
-    api libs.com.github.lenra.io.internal.api.client.lib.java
+    api 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
     api 'jakarta.inject:jakarta.inject-api:2.0.0'
-    testImplementation libs.junit.junit
+    api 'com.github.lenra-io:internal-api-client-lib-java:fix-1234-SNAPSHOT'
+    testImplementation 'junit:junit:4.13.2'
 
     compileOnly 'org.projectlombok:lombok:1.18.30'
 	annotationProcessor 'org.projectlombok:lombok:1.18.30'

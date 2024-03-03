@@ -46,8 +46,10 @@ class ClassInfos {
   static base = {
     ...this.primitives,
     object: new ClassInfos(langPackage, "Object"),
-    list: new ClassInfos("java.util", "ArrayList"),
-    map: new ClassInfos("java.util", "HashMap"),
+    list: new ClassInfos("java.util", "List"),
+    map: new ClassInfos("java.util", "Map"),
+    arrayList: new ClassInfos("java.util", "ArrayList"),
+    hashMap: new ClassInfos("java.util", "HashMap"),
   }
   private static jacksonBase = {
     jsonInclude: new ClassInfos("com.fasterxml.jackson.annotation", "JsonInclude"),
@@ -63,8 +65,20 @@ class ClassInfos {
     ...this.jacksonBase,
     ...this.jacksonSubTypes,
   }
-  static lombok = {
+  static lombokBase = {
     data: new ClassInfos("lombok", "Data"),
+    builder: new ClassInfos("lombok", "Builder"),
+    singular: new ClassInfos("lombok", "Singular"),
+    noArgsConstructor: new ClassInfos("lombok", "NoArgsConstructor"),
+    requiredArgsConstructor: new ClassInfos("lombok", "RequiredArgsConstructor"),
+    allArgsConstructor: new ClassInfos("lombok", "AllArgsConstructor"),
+    nonNull: new ClassInfos("lombok", "NonNull"),
+  }
+  static lombokSubTypes = {
+    builderDefault: new ClassInfos(this.lombokBase.builder, "Default"),
+  }
+  static lombok = {
+    ...this.lombokBase,
   }
   static refs = {
     ...this.base,
@@ -109,6 +123,10 @@ class ClassInfos {
       name += `<${this.subTypes.map(t => t.formatName()).join(", ")}>`;
     }
     return name;
+  }
+
+  instanceof(def: ClassInfos): boolean {
+    return this === def || (this.parent === def.parent && this.name === def.name);
   }
 }
 
@@ -254,7 +272,7 @@ abstract class Element extends ClassInfos {
     return schema;
   }
 
-  private static parseSchema(schema: any, ref: string, parent?: Element): ClassInfos | ConstValue {
+  private static parseSchema(schema: any, ref: string, parent?: Element, forceElement?: boolean): ClassInfos | ConstValue {
     if (schema.enum) {
       return this.parseEnum(schema, ref, parent);
     }
@@ -262,34 +280,34 @@ abstract class Element extends ClassInfos {
     if (schema.type in ClassInfos.primitives) return ClassInfos.primitives[schema.type];
     switch (schema.type) {
       case "object":
-        if (!schema.properties && parent) {
+        if (!schema.properties && !forceElement) {
           return ClassInfos.refs.map.clone([ClassInfos.primitives.string, ClassInfos.refs.object]);
         }
         // generate a sub class for the object
         const element = this.parseClass(schema, ref, parent);
         if (element.fields.size === 0)
-          element.extends = ClassInfos.refs.map.clone([ClassInfos.primitives.string, ClassInfos.refs.object]);
+          element.extends = ClassInfos.refs.hashMap.clone([ClassInfos.primitives.string, ClassInfos.refs.object]);
         return element;
 
       case "array":
         let generatedClass: Class | undefined;
-        if (schema.title) {
-          generatedClass = this.parseClass(schema, ref, parent);
-          parent = generatedClass;
-        }
+        // if (schema.title) {
+        //   generatedClass = this.parseClass(schema, ref, parent);
+        //   parent = generatedClass;
+        // }
         const subType = this.parseSchema(schema.items, `${ref}.items`, parent);
         if (subType instanceof ConstValue) throw new Error(`Invalid array type: ${ref}. Array items cannot be a const`);
         const array = ClassInfos.refs.list.clone([subType]);
-        if (generatedClass) {
-          generatedClass.extends = array;
-          return generatedClass;
-        }
+        // if (generatedClass) {
+        //   generatedClass.extends = array;
+        //   return generatedClass;
+        // }
         return array;
 
       default:
 
         if (schema.$ref) {
-          return this.parseSchema(this.getSchemaForRef(schema.$ref), schema.$ref);
+          return this.parseSchema(this.getSchemaForRef(schema.$ref), schema.$ref, undefined, forceElement);
         }
 
         if (schema.const) {
@@ -323,6 +341,7 @@ abstract class Element extends ClassInfos {
 
     // Add the fields
     if (schema.properties) {
+      const required = schema.required ?? [];
       Object.entries(schema.properties)
         .forEach(([propertyName, propertySchema]) => {
           const res = this.parseSchema(propertySchema, `${ref}.${propertyName} `, element);
@@ -338,6 +357,14 @@ abstract class Element extends ClassInfos {
           field.type = fieldType;
           if (res instanceof ConstValue) {
             field.finalValue = res.value;
+          }
+          else if (required.includes(propertyName)) {
+            element.addImport(ClassInfos.lombok.nonNull);
+            field.annotations.push("@NonNull");
+          }
+          if (fieldType.instanceof(ClassInfos.refs.list)/*|| fieldType.instanceof(ClassInfos.refs.map) )*/ && normalizedPropertyName.endsWith("s")) {
+            element.addImport(ClassInfos.lombok.singular);
+            field.annotations.push("@Singular");
           }
           element.addField(field);
         });
@@ -361,13 +388,13 @@ abstract class Element extends ClassInfos {
       this.files.push(element);
 
     schema.oneOf.forEach((subSchema: any, i: number) => {
-      const subElement = this.parseSchema(subSchema, `${ref}.oneOf.${i}`, element);
+      const subElement = this.parseSchema(subSchema, `${ref}.oneOf.${i}`, element, true);
       if (subElement instanceof Element) {
         element.addImplementation(subElement);
         subElement.addImplements(element);
       }
       else {
-        throw new Error(`Invalid schema: ${ref}.oneOf.${i}. OneOf element is not a class`);
+        throw new Error(`Invalid schema: ${ref}.oneOf.${i}. OneOf element is not an Element`);
       }
     });
 
@@ -427,6 +454,24 @@ class Class extends Element {
 
       this.addImport(ClassInfos.refs.lombokData);
       this.addAnnotation("@Data");
+
+      this.addImport(ClassInfos.refs.lombokBuilder);
+      this.addAnnotation("@Builder");
+
+      this.addImport(ClassInfos.refs.lombokNoArgsConstructor);
+      this.addAnnotation("@NoArgsConstructor");
+
+      this.addImport(ClassInfos.refs.lombokAllArgsConstructor);
+      this.addAnnotation("@AllArgsConstructor");
+
+      // Needed for builder, but if all args are non null, it conflicts with the RequiredArgsConstructor
+      const fields = [...this.fields];
+      const nonNullOrFinalFields = fields.filter(f => f.annotations.includes("@NonNull") || f.finalValue !== undefined);
+      const nonNullFields = fields.filter(f => f.annotations.includes("@NonNull"));
+      if (nonNullFields.length > 0 && nonNullOrFinalFields.length < fields.length) {
+        this.addImport(ClassInfos.refs.lombokRequiredArgsConstructor);
+        this.addAnnotation("@RequiredArgsConstructor");
+      }
     }
     else {
       this.addImport(this.extends);
@@ -441,13 +486,11 @@ class Class extends Element {
     // Add fields
     if (this instanceof Class && this.fields.size > 0) {
       content.push("// Fields");
-      [...this.fields]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach(f =>
-          content.push(
-            ...f.generateLines()
-          )
-        );
+      this.fields.forEach(f =>
+        content.push(
+          ...f.generateLines()
+        )
+      );
     }
 
     content.push(...super.generateContentLines());
