@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lenra.api.AppRequest;
 import io.lenra.api.ListenerRequest;
 import io.lenra.api.Manifest;
-import io.lenra.api.ManifestRequest;
 import io.lenra.api.ResourceRequest;
 import io.lenra.api.ViewRequest;
 import io.lenra.app.handlers.ListenerHandler;

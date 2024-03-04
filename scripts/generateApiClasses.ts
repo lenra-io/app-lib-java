@@ -1,11 +1,6 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from "fs";
 import { resolve, dirname } from "path";
 
-
-// TODO: generate construtors https://projectlombok.org/features/constructor
-// TODO: manage builders https://projectlombok.org/features/Builder
-
-
 const basePackage = "io.lenra.api";
 const basePath = process.argv[2] ?? "build/test/lenraApi";
 
@@ -362,9 +357,13 @@ abstract class Element extends ClassInfos {
             element.addImport(ClassInfos.lombok.nonNull);
             field.annotations.push("@NonNull");
           }
-          if (fieldType.instanceof(ClassInfos.refs.list)/*|| fieldType.instanceof(ClassInfos.refs.map) )*/ && normalizedPropertyName.endsWith("s")) {
+          if (fieldType.instanceof(ClassInfos.refs.list) || fieldType.instanceof(ClassInfos.refs.map)) {
             element.addImport(ClassInfos.lombok.singular);
-            field.annotations.push("@Singular");
+            let annotation = "@Singular";
+            if (!normalizedPropertyName.endsWith("s")) {
+              annotation += `("${normalizedPropertyName}Item")`;
+            }
+            field.annotations.push(annotation);
           }
           element.addField(field);
         });
