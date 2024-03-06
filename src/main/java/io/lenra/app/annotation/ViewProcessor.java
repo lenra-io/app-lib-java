@@ -3,10 +3,10 @@ package io.lenra.app.annotation;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
@@ -17,7 +17,6 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ExecutableType;
 import javax.tools.JavaFileObject;
 
 import com.google.auto.service.AutoService;
@@ -32,25 +31,26 @@ public class ViewProcessor extends AbstractProcessor {
 
 	@Override
 	public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+		Map<String, MethodRef<ViewParameterType>> views = new HashMap<>();
+		// Map<String, ListenerRef> listeners = new HashMap<>();
+		// Map<String, ResourceRef> resources = new HashMap<>();
+
 		for (TypeElement annotation : annotations) {
 			System.out.println("Annotation: " + annotation.getQualifiedName());
 			var annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
-			var views = annotatedElements.stream().map(element -> {
+			annotatedElements.forEach(element -> {
 				ExecutableElement method = (ExecutableElement) element;
 				var viewAnnotation = method.getAnnotation(View.class);
-				String viewName = viewAnnotation.name();
+				String name = viewAnnotation.name();
 				// TODO: manage package name ? Or an annotation for name prefix
-				if (viewName.isEmpty()) {
-					viewName = method.getSimpleName().toString();
+				if (name.isEmpty()) {
+					name = method.getSimpleName().toString();
 				}
-				System.out.println("Method: " + element.getSimpleName() + " [" + element.getClass() + "]");
 				var parameters = method.getParameters();
-				System.out.println("parameters: " + parameters);
-				var viewParameters = new ArrayList<ViewParameter>();
+				var viewParameters = new ArrayList<Parameter<ViewParameterType>>();
 				ViewParameterType lastType = null;
 				for (int i = 0; i < parameters.size(); i++) {
 					var param = parameters.get(i);
-					System.out.println("Parameter: " + param.getSimpleName() + " [" + param.getClass() + "]");
 					// determine parameter type with position and annotation
 					ViewParameterType type = ViewParameterType.DATA;
 					if (param.getAnnotation(View.Data.class) != null) {
@@ -79,29 +79,33 @@ public class ViewProcessor extends AbstractProcessor {
 						throw new IllegalArgumentException("Too many parameters of type " + type);
 					}
 
-					var parameter = ViewParameter.parse(type, param);
+					var parameter = Parameter.parse(type, param);
 					viewParameters.add(parameter);
 					lastType = type;
-				};
+				}
+				;
 
-				String methodFullName = processingEnv.getElementUtils().getBinaryName((TypeElement)method.getEnclosingElement()) + "." + method.getSimpleName();
+				String methodFullName = processingEnv.getElementUtils()
+						.getBinaryName((TypeElement) method.getEnclosingElement()) + "." + method.getSimpleName();
 
-				return new ViewRef(viewName, methodFullName, viewParameters);
-			}).collect(Collectors.toList());
-			Map<String, ViewRef> viewMap = views.stream().collect(Collectors.toMap(ViewRef::getName, view -> view));
+				var view = new MethodRef<>(name, methodFullName, viewParameters);
+				if (views.containsKey(name)) {
+					throw new IllegalArgumentException("View " + name + " already exists");
+				}
+				views.put(name, view);
+			});
+		}
 
-			try {
-				this.writeAppViewsClass(viewMap);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				return false;
-			}
+		try {
+			this.writeRequestHandlerClass(views);
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
 		}
 		return true;
 	}
 
-	private void writeAppViewsClass(Map<String, ViewRef> views) throws IOException {
+	private void writeRequestHandlerClass(Map<String, MethodRef<ViewParameterType>> views) throws IOException {
 		String packageName = "io.lenra.app";
 		String className = "RequestHandlerImpl";
 
@@ -116,6 +120,9 @@ public class ViewProcessor extends AbstractProcessor {
 
 			out.println("import io.lenra.api.ViewRequest;");
 			out.println("import jakarta.inject.Named;");
+			out.println("import jakarta.inject.Inject;");
+			out.println("import com.fasterxml.jackson.databind.ObjectMapper;");
+			out.println("import com.fasterxml.jackson.core.type.TypeReference;");
 			out.println();
 
 			out.println("@Named");
@@ -124,81 +131,66 @@ public class ViewProcessor extends AbstractProcessor {
 			out.println(" extends RequestHandler {");
 			out.println();
 
+			out.println(" @Inject");
+			out.println(" private ObjectMapper mapper;");
+
+			out.println(" @Override");
 			out.println(" public Object handleView(ViewRequest request) {");
-			out.println("   System.out.println(\"Handling view request: \" + request.getView());");
-			out.println("   return request;");
-			// TODO: manage the call of the views
-			out.println("   var view = request.getView();");
-			out.println("   switch (view) {");
-			views.values().forEach(view -> {
-				out.println("     case \"" + view.getName() + "\":");
-				out.print("       return " + view.getMethod() + "(");
-				for (var i = 0; i < view.getParameters().size(); i++) {
-					var parameter = view.getParameters().get(i);
-					out.print("request.get");
-					out.print(parameter.getType().name().substring(0, 1).toUpperCase());
-					out.print(parameter.getType().name().substring(1).toLowerCase());
-					out.print("()");
-					if (i < view.getParameters().size() - 1) {
-						out.print(", ");
-					}
-				}
-				out.println(");");
-			});
-			out.println("     default:");
-			out.println("       throw new IllegalArgumentException(\"Unknown view: \" + view);");
-			out.println("   }");
+			out.println("   var name = request.getView();");
+			writeRequestHandlers(out, views);
 			out.println(" }");
 			out.println();
-
-			// out.print(" public ");
-			// out.print(simpleClassName);
-			// out.println(" build() {");
-			// out.println(" return object;");
-			// out.println(" }");
-			// out.println();
-
-			// setterMap.entrySet().forEach(setter -> {
-			// String methodName = setter.getKey();
-			// String argumentType = setter.getValue();
-
-			// out.print(" public ");
-			// out.print(builderSimpleClassName);
-			// out.print(" ");
-			// out.print(methodName);
-
-			// out.print("(");
-
-			// out.print(argumentType);
-			// out.println(" value) {");
-			// out.print(" object.");
-			// out.print(methodName);
-			// out.println("(value);");
-			// out.println(" return this;");
-			// out.println(" }");
-			// out.println();
-			// });
 
 			out.println("}");
 		}
 	}
 
-	@AllArgsConstructor
-	@Data
-	private static class ViewRef {
-		private String name;
-		private String method;
-		private List<ViewParameter> parameters;
+	private <T extends Enum<T>> void writeRequestHandlers(PrintWriter out, Map<String, MethodRef<T>> handlers)
+			throws IOException {
+		out.println("   System.out.println(\"Handling \" + request.getClass().getSimpleName() + \" : \" + name);");
+		// manage the call of the views
+		out.println("   switch (name) {");
+		handlers.values().forEach(view -> {
+			out.println("     case \"" + view.getName() + "\":");
+			out.println("       return " + view.getMethod() + "(");
+			for (var i = 0; i < view.getParameters().size(); i++) {
+				var parameter = view.getParameters().get(i);
+				// mapper.convertValue(, new TypeReference<List<MyDto>>() { })
+				out.print("       mapper.convertValue(");
+				out.print("request.get");
+				out.print(parameter.getType().name().substring(0, 1).toUpperCase());
+				out.print(parameter.getType().name().substring(1).toLowerCase());
+				out.print("(), new TypeReference<");
+				out.print(parameter.getClassName());
+				out.print(">() { })");
+				if (i < view.getParameters().size() - 1) {
+					out.print(",");
+				}
+				out.println();
+			}
+			out.println("			 );");
+		});
+		out.println("     default:");
+		out.println("       throw new IllegalArgumentException(\"Unknown view: \" + view);");
+		out.println("   }");
 	}
 
 	@AllArgsConstructor
 	@Data
-	private static class ViewParameter {
-		private ViewParameterType type;
+	private static class MethodRef<T extends Enum<T>> {
+		private String name;
+		private String method;
+		private List<Parameter<T>> parameters;
+	}
+
+	@AllArgsConstructor
+	@Data
+	private static class Parameter<T extends Enum<T>> {
+		private T type;
 		private String className;
 
-		public static ViewParameter parse(ViewParameterType type, VariableElement element) {
-			return new ViewParameter(type, element.asType().toString());
+		public static <T extends Enum<T>> Parameter<T> parse(T type, VariableElement element) {
+			return new Parameter<>(type, element.asType().toString());
 		}
 	}
 

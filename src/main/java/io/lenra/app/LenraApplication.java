@@ -11,40 +11,18 @@ import jakarta.inject.Inject;
 
 public abstract class LenraApplication {
 	@Inject
-	private ObjectMapper mapper;
-	@Inject
 	private RequestHandler requestHandler;
 	private final Manifest manifest;
-	// private final Map<String, ViewHandler<?, ?, ?>> views;
-	// private final HandlerMap viewsNew;
-	// private final Map<String, ListenerHandler<?>> listeners;
 
 	public LenraApplication() {
 		this.manifest = manifest();
-		// this.views = Collections.unmodifiableMap(views());
-		// this.viewsNew = viewsNew();
-		// this.listeners = Collections.unmodifiableMap(listeners());
 	}
 
 	public Manifest getManifest() {
 		return manifest;
 	}
 
-	// public Map<String, ViewHandler<?, ?, ?>> getViews() {
-	// 	return views;
-	// }
-
-	// public Map<String, ListenerHandler<?>> getListeners() {
-	// 	return listeners;
-	// }
-
 	abstract protected Manifest manifest();
-
-	// abstract protected Map<String, ViewHandler<?, ?, ?>> views();
-
-	// abstract protected HandlerMap viewsNew();
-
-	// abstract protected Map<String, ListenerHandler<?>> listeners();
 
 	final public Object handle(AppRequest request) {
 		if (request instanceof ViewRequest) {
