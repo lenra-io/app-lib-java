@@ -34,3 +34,5 @@ You can also generate them manually:
 ```bash
 ./gradlew publishToMavenLocal
 ```
+
+TODO: create an annotation processor to get dtheviews and listeners: https://www.baeldung.com/java-annotation-processing-builder

@@ -1,7 +1,7 @@
 plugins {
     id 'java-library'
-    id 'groovy'
-    id 'org.jetbrains.kotlin.jvm' version '1.9.22'
+    // id 'groovy'
+    // id 'org.jetbrains.kotlin.jvm' version '1.9.22'
     id 'maven-publish'
 }
 
@@ -16,16 +16,22 @@ repositories {
 dependencies {
     api 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
     api 'jakarta.inject:jakarta.inject-api:2.0.0'
-    api 'com.github.lenra-io:internal-api-client-lib-java:fix-1234-SNAPSHOT'
+    api 'com.github.lenra-io:internal-api-client-lib-java:upgrade-SNAPSHOT'
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.codehaus.groovy:groovy-all:2.4.15'
-    testImplementation 'org.jetbrains.kotlin:kotlin-test'
+    // testImplementation 'org.codehaus.groovy:groovy-all:2.4.15'
+    // testImplementation 'org.jetbrains.kotlin:kotlin-test'
 
-    compileOnly 'org.projectlombok:lombok:1.18.30'
-	annotationProcessor 'org.projectlombok:lombok:1.18.30'
-	
-	testCompileOnly 'org.projectlombok:lombok:1.18.30'
-	testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
+    def lombok = 'org.projectlombok:lombok:1.18.30'
+    compileOnly lombok
+	annotationProcessor lombok
+	testCompileOnly lombok
+	testAnnotationProcessor lombok
+
+    def googleAutoService = 'com.google.auto.service:auto-service:1.1.1'
+    compileOnly googleAutoService
+	annotationProcessor googleAutoService
+	testCompileOnly googleAutoService
+	testAnnotationProcessor googleAutoService
 }
 
 group = 'io.lenra'
