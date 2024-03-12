@@ -38,10 +38,10 @@ public class AppProcessor extends AbstractProcessor {
 		String manifestClass = null;
 		Map<String, MethodRef<ViewParameter>> views = new HashMap<>();
 		Map<String, MethodRef<ListenerParameter>> listeners = new HashMap<>();
+		// TODO: manage resources
 		// Map<String, ResourceRef> resources = new HashMap<>();
 
 		for (TypeElement annotation : annotations) {
-			System.out.println("Annotation: " + annotation.getQualifiedName());
 			var annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
 			if (annotation.getQualifiedName().toString().equals(Manifest.class.getName())) {
 				if (annotatedElements.size() > 1) {
@@ -136,11 +136,13 @@ public class AppProcessor extends AbstractProcessor {
 		return parsedParameters;
 	}
 
-	private void writeRequestHandlerClass(String manifestClass, Map<String, MethodRef<ViewParameter>> views, Map<String, MethodRef<ListenerParameter>> listeners) throws IOException {
+	private void writeRequestHandlerClass(String manifestClass, Map<String, MethodRef<ViewParameter>> views,
+			Map<String, MethodRef<ListenerParameter>> listeners) throws IOException {
 		String packageName = "io.lenra.app";
 		String className = "RequestHandlerImpl";
 
 		JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(packageName + "." + className);
+		builderFile.delete();
 
 		try (PrintWriter out = new PrintWriter(builderFile.openWriter())) {
 
@@ -150,6 +152,8 @@ public class AppProcessor extends AbstractProcessor {
 			out.println();
 
 			out.println("import io.lenra.api.ViewRequest;");
+			out.println("import io.lenra.api.ListenerRequest;");
+			out.println("import io.lenra.app.exception.NotFoundException;");
 			out.println("import jakarta.inject.Named;");
 			out.println("import jakarta.inject.Inject;");
 			out.println("import com.fasterxml.jackson.databind.ObjectMapper;");
@@ -165,12 +169,11 @@ public class AppProcessor extends AbstractProcessor {
 			out.println(" @Inject");
 			out.println(" private ObjectMapper mapper;");
 
-			out.println(" @Inject");
-			out.println(" private "+ manifestClass +" manifest = new "+ manifestClass +"();");
+			out.println(" private " + manifestClass + " manifest = new " + manifestClass + "();");
 			out.println();
 
 			out.println(" @Override");
-			out.println(" public Object handleManifest(ViewRequest request) {");
+			out.println(" public io.lenra.api.Manifest handleManifest() {");
 			out.println("   return manifest;");
 			out.println(" }");
 			out.println();
@@ -178,14 +181,14 @@ public class AppProcessor extends AbstractProcessor {
 			out.println(" @Override");
 			out.println(" public Object handleView(ViewRequest request) {");
 			out.println("   var name = request.getView();");
-			writeRequestHandlers(out, views);
+			writeRequestHandlers(out, views, true);
 			out.println(" }");
 			out.println();
 
 			out.println(" @Override");
-			out.println(" public Object handleListener(ListenerRequest request) {");
+			out.println(" public void handleListener(ListenerRequest request) {");
 			out.println("   var name = request.getListener();");
-			writeRequestHandlers(out, listeners);
+			writeRequestHandlers(out, listeners, false);
 			out.println(" }");
 			out.println();
 
@@ -193,7 +196,8 @@ public class AppProcessor extends AbstractProcessor {
 		}
 	}
 
-	private <T extends Enum<T>> void writeRequestHandlers(PrintWriter out, Map<String, MethodRef<T>> handlers)
+	private <T extends Enum<T>> void writeRequestHandlers(PrintWriter out, Map<String, MethodRef<T>> handlers,
+			boolean returns)
 			throws IOException {
 		out.println("   System.out.println(\"Handling \" + request.getClass().getSimpleName() + \" : \" + name);");
 		// manage the call of the views
@@ -202,11 +206,14 @@ public class AppProcessor extends AbstractProcessor {
 			var name = entry.getKey();
 			var view = entry.getValue();
 			out.println("     case \"" + name + "\":");
-			out.println("       return " + view.getMethod() + "(");
+			out.print("       ");
+			if (returns)
+				out.print("return ");
+			out.println(view.getMethod() + "(");
 			for (var i = 0; i < view.getParameters().size(); i++) {
 				var parameter = view.getParameters().get(i);
 				// mapper.convertValue(, new TypeReference<List<MyDto>>() { })
-				out.print("       mapper.convertValue(");
+				out.print("         mapper.convertValue(");
 				out.print("request.get");
 				out.print(parameter.getType().name().substring(0, 1).toUpperCase());
 				out.print(parameter.getType().name().substring(1).toLowerCase());
@@ -219,9 +226,11 @@ public class AppProcessor extends AbstractProcessor {
 				out.println();
 			}
 			out.println("			 );");
+			if (!returns)
+				out.println("       break;");
 		});
 		out.println("     default:");
-		out.println("       throw new IllegalArgumentException(\"Unknown view: \" + view);");
+		out.println("       throw new NotFoundException(\"Unknown element: \" + name);");
 		out.println("   }");
 	}
 
