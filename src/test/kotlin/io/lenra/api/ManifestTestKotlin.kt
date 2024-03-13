@@ -26,10 +26,10 @@ public class ManifestTestKotlin {
 						path = "/counter/global"
 						view = View().apply {
 							name = "counter"
-							find = Find().apply {
-								coll = "counter"
-								query = mapOf("user" to "global")
-							}
+							find = Find(
+								"counter",
+								mapOf("user" to "global")
+							)
 						}
 						roles = listOf("guest", "user")
 					},
@@ -37,10 +37,10 @@ public class ManifestTestKotlin {
 						path = "/counter/me"
 						view = View().apply {
 							name = "counter"
-							find=Find().apply {
-								coll = "counter"
-								query = mapOf("user" to "@me")
-							}
+							find=Find(
+								"counter",
+								mapOf("user" to "@me")
+							)
 						}
 					}
 				)

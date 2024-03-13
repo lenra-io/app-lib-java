@@ -7,6 +7,7 @@ import io.lenra.api.ListenerRequest;
 import io.lenra.api.Manifest;
 import io.lenra.api.ResourceRequest;
 import io.lenra.api.ViewRequest;
+import io.lenra.app.exception.NotFoundException;
 import lombok.Getter;
 
 public abstract class RequestHandler {
@@ -23,15 +24,15 @@ public abstract class RequestHandler {
 		}
 	}
 
-	protected abstract Object handleView(ViewRequest request);
+	public abstract Object handleView(ViewRequest request);
 
-	protected abstract void handleListener(ListenerRequest request);
+	public abstract void handleListener(ListenerRequest request);
 
-	protected Resource handleResource(ResourceRequest request) {
+	public Resource handleResource(ResourceRequest request) {
 		String resource = request.getResource();
 		var url = getClass().getResource("/assets/" + resource);
 		if (url == null) {
-			throw new IllegalArgumentException("Resource not found: " + resource);
+			throw new NotFoundException("Resource not found: " + resource);
 		}
 
 		try (var stream = url.openStream()) {
@@ -42,7 +43,7 @@ public abstract class RequestHandler {
 		}
 	}
 
-	protected abstract Manifest handleManifest();
+	public abstract Manifest handleManifest();
 
 	@Getter
 	public static class Resource {

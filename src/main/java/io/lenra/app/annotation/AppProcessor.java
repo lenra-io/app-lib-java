@@ -207,6 +207,7 @@ public class AppProcessor extends AbstractProcessor {
 			out.println("import io.lenra.api.ViewRequest;");
 			out.println("import io.lenra.api.ListenerRequest;");
 			out.println("import io.lenra.app.exception.NotFoundException;");
+			out.println("import jakarta.enterprise.context.ApplicationScoped;");
 			out.println("import jakarta.inject.Named;");
 			out.println("import jakarta.inject.Inject;");
 			out.println("import com.fasterxml.jackson.databind.ObjectMapper;");
@@ -214,6 +215,7 @@ public class AppProcessor extends AbstractProcessor {
 			out.println();
 
 			out.println("@Named");
+			out.println("@ApplicationScoped");
 			out.print("public class ");
 			out.print(className);
 			out.println(" extends RequestHandler {");

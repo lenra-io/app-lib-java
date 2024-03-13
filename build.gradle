@@ -1,7 +1,7 @@
 plugins {
     id 'java-library'
-    // id 'groovy'
-    // id 'org.jetbrains.kotlin.jvm' version '1.9.22'
+    id 'groovy'
+    id 'org.jetbrains.kotlin.jvm' version '1.9.22'
     id 'maven-publish'
 }
 
@@ -18,8 +18,8 @@ dependencies {
     api 'jakarta.inject:jakarta.inject-api:2.0.0'
     api 'com.github.lenra-io:internal-api-client-lib-java:upgrade-SNAPSHOT'
     testImplementation 'junit:junit:4.13.2'
-    // testImplementation 'org.codehaus.groovy:groovy-all:2.4.15'
-    // testImplementation 'org.jetbrains.kotlin:kotlin-test'
+    testImplementation 'org.codehaus.groovy:groovy-all:2.4.15'
+    testImplementation 'org.jetbrains.kotlin:kotlin-test'
 
     def lombok = 'org.projectlombok:lombok:1.18.30'
     compileOnly lombok

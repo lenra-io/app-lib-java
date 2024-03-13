@@ -12,10 +12,11 @@ rmSync(basePath, { recursive: true, force: true });
 
 const langPackage = "java.lang";
 
+const viewSchama = "responses/view.schema.json";
 const schemata = [
   "manifest.schema.json",
   "requests/app.schema.json",
-  "responses/view.schema.json",
+  viewSchama,
 ];
 
 type RenamedKeys<T extends { [P in keyof T]: T[P] }, P extends string = string> = {
@@ -74,6 +75,9 @@ class ClassInfos {
   }
   static lombok = {
     ...this.lombokBase,
+  }
+  static lenra = {
+    filler: new ClassInfos("io.lenra.app.view", "Filler"),
   }
   static refs = {
     ...this.base,
@@ -155,7 +159,7 @@ abstract class Element extends ClassInfos {
     return this.parent instanceof ClassInfos ? this.parent.baseElement : this;
   }
 
-  protected addDefaultValues() {
+  addDefaultValues() {
     this.children.forEach(c => c.addDefaultValues());
   }
 
@@ -185,7 +189,6 @@ abstract class Element extends ClassInfos {
   }
 
   generate(): string {
-    this.addDefaultValues();
     return this.generateLines().join("\n") + "\n";
   }
 
@@ -365,6 +368,14 @@ abstract class Element extends ClassInfos {
             }
             field.annotations.push(annotation);
           }
+          if (fieldType.instanceof(ClassInfos.refs.map) && fieldType.subTypes?.[0].instanceof(ClassInfos.base.string)) {
+            const setter = new Method();
+            setter.name = `set${normalizedPropertyName.substring(0, 1).toUpperCase()}${normalizedPropertyName.substring(1)}`;
+            setter.parameters.push({ name: normalizedPropertyName, type: ClassInfos.base.object });
+            setter.content.push("var mapper = new com.fasterxml.jackson.databind.ObjectMapper();");
+            setter.content.push(`this.${normalizedPropertyName} = mapper.convertValue(${normalizedPropertyName}, new com.fasterxml.jackson.core.type.TypeReference<${fieldType.formatName()}>() { });`);
+            element.addMethod(setter);
+          }
           element.addField(field);
         });
     }
@@ -441,12 +452,17 @@ type ElementParent = Package | ClassInfos;
 class Class extends Element {
   extends?: ClassInfos
   fields: Set<Field> = new Set()
+  methods: Set<Method> = new Set()
 
   addField(field: Field) {
     this.fields.add(field);
   }
 
-  protected addDefaultValues(): void {
+  addMethod(method: Method) {
+    this.methods.add(method);
+  }
+
+  addDefaultValues(): void {
     if (this.extends === undefined) {
       this.addImport(ClassInfos.refs.jacksonJsonInclude);
       this.addAnnotation("@JsonInclude(JsonInclude.Include.NON_NULL)");
@@ -485,24 +501,36 @@ class Class extends Element {
     // Add fields
     if (this.fields.size > 0) {
       content.push("// Fields");
-      const mapFields:Field[] = [];
+      const mapFields: Field[] = [];
       this.fields.forEach(f => {
         content.push(
           ...f.generateLines()
         );
-        if (f.finalValue===undefined && f.type.instanceof(ClassInfos.base.map)) 
+        if (f.finalValue === undefined && f.type.instanceof(ClassInfos.base.map))
           mapFields.push(f);
       });
+    }
 
-      if (mapFields.length > 0) {
-        content.push("", "// Additional setters");
-        mapFields.forEach(f => {
-          content.push(`public void set${f.name.substring(0, 1).toUpperCase()}${f.name.substring(1)}(Object ${f.name}) {`);
-          content.push("  var mapper = new com.fasterxml.jackson.databind.ObjectMapper();");
-          content.push(`  this.${f.name} = mapper.convertValue(${f.name}, new com.fasterxml.jackson.core.type.TypeReference<${f.type.formatName()}>() { });`);
-          content.push("}");
-        });
-      }
+    // Add methods
+    const instanceMethods = [...this.methods].filter(m => !m.static);
+    if (instanceMethods.length > 0) {
+      content.push("", "// Methods");
+      instanceMethods.forEach(m => {
+        content.push(
+          ...m.generateLines(),
+          ""
+        );
+      });
+    }
+    const staticMethods = [...this.methods].filter(m => m.static);
+    if (staticMethods.length > 0) {
+      content.push("", "// Static methods");
+      staticMethods.forEach(m => {
+        content.push(
+          ...m.generateLines(),
+          ""
+        );
+      });
     }
 
     content.push(...super.generateContentLines());
@@ -534,7 +562,7 @@ class Interface extends Element {
     this.implementations.add(impl);
   }
 
-  protected addDefaultValues(): void {
+  addDefaultValues(): void {
     if (this.implementations?.size ?? 0 > 0) {
       const implementations = [...this.implementations];
       this.addImport(ClassInfos.jackson.jsonTypeInfo);
@@ -586,7 +614,7 @@ class Enum extends Element {
     return declaration;
   }
 
-  protected addDefaultValues(): void {
+  addDefaultValues(): void {
     this.addImport(ClassInfos.jackson.jsonProperty);
 
     super.addDefaultValues();
@@ -629,19 +657,93 @@ class Field {
   }
 }
 
+interface Parameter {
+  name: string
+  type: ClassInfos
+}
+
+class Method {
+  name: string
+  returnType?: ClassInfos
+  parameters: Parameter[] = []
+  content: string[] = []
+  static: boolean = false
+
+  generateLines(): string[] {
+    let content: string[] = [];
+    let declaration = "public ";
+    if (this.static) declaration += "static ";
+    declaration += `${this.returnType ? this.returnType.formatName() : "void"} ${this.name}(`;
+    if (this.parameters.length > 0) {
+      declaration += this.parameters.map(p => `${p.type.formatName()} ${p.name}`).join(", ");
+    }
+    declaration += ") {";
+    content.push(declaration);
+    content.push(...this.content.map(l => indent(l, baseIndentation)));
+    content.push("}");
+    return content;
+  }
+}
+
+function indent(content: string, prefix: string): string {
+  if (content.length === 0) return content;
+  return content.split("\n").map(l => prefix + l).join("\n");
+}
+
+function generateComponentsClass() {
+  const componentsClass = new Class(`${basePackage}.components`, "Components", "");
+  componentsClass.addImport(ClassInfos.lenra.filler);
+  // get all components classes
+  Element.files
+    .filter(f => f instanceof Class && f.parent === `${basePackage}.components`)
+    .map(c => c as Class)
+    // for each class, generate 2 static methods: one with the same arguments as the constructor and another adding a filler
+    .forEach(c => {
+      const parameters = [...c.fields]
+        // not final
+        .filter(f => f.finalValue === undefined)
+        // having the @NonNull annotation
+        .filter(f => f.annotations.includes("@NonNull"))
+        .map(f => ({ name: f.name, type: f.type }));
+
+      componentsClass.addImport(c);
+      parameters.forEach(p => componentsClass.addImport(p.type));
+
+      let methodName = c.name.substring(0, 1).toLowerCase() + c.name.substring(1);
+
+      let method = new Method();
+      method.static = true;
+      method.name = methodName;
+      method.returnType = c;
+      method.parameters = [...parameters];
+      method.content.push(`return new ${c.name}(${parameters.map(f => f.name).join(", ")});`);
+      componentsClass.addMethod(method);
+
+      method = new Method();
+      method.static = true;
+      method.name = methodName;
+      method.returnType = c;
+      method.parameters = [...parameters, { name: "filler", type: ClassInfos.lenra.filler.clone([c]) }];
+      method.content.push(`var ret = new ${c.name}(${parameters.map(f => f.name).join(", ")});`);
+      method.content.push("filler.fill(ret);");
+      method.content.push("return ret;");
+      componentsClass.addMethod(method);
+    });
+  Element.files.push(componentsClass);
+}
+
 rmSync(packagePath, { recursive: true, force: true });
 
 for (let i = 0; i < schemata.length; i++) {
   Element.parse(schemata[i]);
 }
 
+Element.files.forEach(f => f.addDefaultValues());
+
+generateComponentsClass();
+
 Element.files.forEach(f => {
   const filePath = resolve(basePath, ...f.parentFullName.split("."), `${f.name}.java`);
   mkdirSync(dirname(filePath), { recursive: true });
   writeFileSync(filePath, f.generate());
 });
-
-function indent(content: string, prefix: string): string {
-  if (content.length === 0) return content;
-  return content.split("\n").map(l => prefix + l).join("\n");
-}

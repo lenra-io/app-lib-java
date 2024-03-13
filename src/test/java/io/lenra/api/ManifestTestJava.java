@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.lenra.api.components.View;
 import io.lenra.api.components.view.definitions.Find;
+import static io.lenra.api.components.Components.*;
 
 /**
  * Unit test for simple App.
@@ -74,6 +75,24 @@ public class ManifestTestJava {
 								setFind(new Find("counter", Map.of("user", "@me")));
 							}
 						}))));
+
+		assertEquals(
+				JSON_MANIFEST,
+				mapper.writeValueAsString(manifest));
+	}
+
+	@Test
+	public void jsonContrstructorWithComponentsMethods() throws JsonProcessingException {
+		Manifest manifest = new Manifest(null, new Exposer(null, List.of(
+				new Route(
+						"/counter/global",
+						view("counter",
+								v -> v.setFind(new Find("counter", Map.of("user", "global")))),
+						List.of("guest", "user")),
+				new Route(
+						"/counter/me",
+						view("counter",
+								v -> v.setFind(new Find("counter", Map.of("user", "@me"))))))));
 
 		assertEquals(
 				JSON_MANIFEST,
