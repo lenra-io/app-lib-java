@@ -27,8 +27,8 @@ import com.google.auto.service.AutoService;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
-@SupportedAnnotationTypes({ "io.lenra.app.annotation.Manifest", "io.lenra.app.annotation.View",
-		"io.lenra.app.annotation.Listener" })
+@SupportedAnnotationTypes({ "io.lenra.app.annotation.AppManifest", "io.lenra.app.annotation.AppView",
+		"io.lenra.app.annotation.AppListener" })
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
 @AutoService(Processor.class)
 public class AppProcessor extends AbstractProcessor {
@@ -43,7 +43,7 @@ public class AppProcessor extends AbstractProcessor {
 
 		for (TypeElement annotation : annotations) {
 			var annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
-			if (annotation.getQualifiedName().toString().equals(Manifest.class.getName())) {
+			if (annotation.getQualifiedName().toString().equals(AppManifest.class.getName())) {
 				if (annotatedElements.size() > 1) {
 					throw new IllegalArgumentException("Too many manifests");
 				}
@@ -53,45 +53,58 @@ public class AppProcessor extends AbstractProcessor {
 				manifestClass = processingEnv.getElementUtils()
 						.getBinaryName((TypeElement) annotatedElements.iterator().next()).toString();
 
-			} else if (annotation.getQualifiedName().toString().equals(View.class.getName())) {
-				parseMethods(views, ViewParameter.class, View.class, View::name, annotatedElements);
-			} else if (annotation.getQualifiedName().toString().equals(Listener.class.getName())) {
-				parseMethods(listeners, ListenerParameter.class, Listener.class, Listener::name, annotatedElements);
+			} else if (annotation.getQualifiedName().toString().equals(AppView.class.getName())) {
+				parseMethods(views, ViewParameter.class, AppView.class,
+						AppView::prefix, AppView::name,
+						annotatedElements);
+			} else if (annotation.getQualifiedName().toString().equals(AppListener.class.getName())) {
+				parseMethods(listeners, ListenerParameter.class, AppListener.class,
+						AppListener::prefix, AppListener::name,
+						annotatedElements);
 			} else {
 				throw new IllegalArgumentException("Unknown annotation: " + annotation.getQualifiedName());
 			}
 		}
 
-		try {
-			this.writeRequestHandlerClass(manifestClass, views, listeners);
-		} catch (IOException e) {
-			e.printStackTrace();
-			return false;
+		if (views.size() > 0 || listeners.size() > 0) {
+			try {
+				this.writeNamesEnum("io.lenra.app.view", "ViewName", views);
+				this.writeNamesEnum("io.lenra.app.listener", "ListenerName", listeners);
+				this.writeRequestHandlerClass(manifestClass, views, listeners);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			return true;
 		}
-		return true;
+		return false;
 	}
 
 	private <A extends Annotation, T extends Enum<T> & AnnotatedParameter> void parseMethods(
-			Map<String, MethodRef<T>> elements, Class<T> enumClass, Class<A> annotationClass, Function<A, String> nameGetter,
+			Map<String, MethodRef<T>> elements, Class<T> enumClass, Class<A> annotationClass,
+			Function<A, String> prefixGetter, Function<A, String> nameGetter,
 			Set<? extends Element> methods) {
 		methods.forEach(element -> {
 			ExecutableElement method = (ExecutableElement) element;
-			parseMethod(elements, enumClass, annotationClass, nameGetter, method);
+			parseMethod(elements, enumClass, annotationClass, prefixGetter, nameGetter, method);
 		});
 	}
 
 	private <A extends Annotation, T extends Enum<T> & AnnotatedParameter> void parseMethod(
-			Map<String, MethodRef<T>> elements, Class<T> enumClass, Class<A> annotationClass, Function<A, String> nameGetter,
+			Map<String, MethodRef<T>> elements, Class<T> enumClass, Class<A> annotationClass,
+			Function<A, String> prefixGetter, Function<A, String> nameGetter,
 			ExecutableElement method) {
+		String prefix = "";
 		String name = "";
 		var annotation = method.getAnnotation(annotationClass);
 		if (annotation != null) {
+			prefix = prefixGetter.apply(annotation);
 			name = nameGetter.apply(annotation);
 		}
-		// TODO: manage package name ? Or an annotation for name prefix
-		if (name.isEmpty()) {
+		if (name.isEmpty())
 			name = method.getSimpleName().toString();
-		}
+		if (!prefix.isEmpty())
+			name = prefix + name;
+
 		var parameters = parseParameters(enumClass, method.getParameters());
 
 		String methodFullName = processingEnv.getElementUtils()
@@ -134,6 +147,46 @@ public class AppProcessor extends AbstractProcessor {
 			parsedParameters.add(parameter);
 		}
 		return parsedParameters;
+	}
+
+	private <T extends Enum<T>> void writeNamesEnum(String packageName, String enumName,
+			Map<String, MethodRef<T>> handlers) throws IOException {
+		JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(packageName + "." + enumName);
+		builderFile.delete();
+
+		try (PrintWriter out = new PrintWriter(builderFile.openWriter())) {
+			out.print("package ");
+			out.print(packageName);
+			out.println(";");
+			out.println();
+
+			out.print("public enum ");
+			out.print(enumName);
+			out.println(" {");
+			var namesIt = handlers.keySet().iterator();
+			while (namesIt.hasNext()) {
+				var name = namesIt.next();
+				String enumValue = name.replaceAll("\\W+", "_").toUpperCase();
+				out.print(" ");
+				out.print(enumValue);
+				out.print("(\"");
+				out.print(name);
+				out.print("\")");
+				if (namesIt.hasNext())
+					out.println(",");
+			}
+			out.println(";");
+			out.println("");
+
+			out.println(" public final String value;");
+			out.println();
+			out.print(" private ");
+			out.print(enumName);
+			out.println("(String name) {");
+			out.println("   this.value = name;");
+			out.println(" }");
+			out.println("}");
+		}
 	}
 
 	private void writeRequestHandlerClass(String manifestClass, Map<String, MethodRef<ViewParameter>> views,
@@ -209,23 +262,27 @@ public class AppProcessor extends AbstractProcessor {
 			out.print("       ");
 			if (returns)
 				out.print("return ");
-			out.println(view.getMethod() + "(");
-			for (var i = 0; i < view.getParameters().size(); i++) {
-				var parameter = view.getParameters().get(i);
-				// mapper.convertValue(, new TypeReference<List<MyDto>>() { })
-				out.print("         mapper.convertValue(");
-				out.print("request.get");
-				out.print(parameter.getType().name().substring(0, 1).toUpperCase());
-				out.print(parameter.getType().name().substring(1).toLowerCase());
-				out.print("(), new TypeReference<");
-				out.print(parameter.getClassName());
-				out.print(">() { })");
-				if (i < view.getParameters().size() - 1) {
-					out.print(",");
-				}
+			out.print(view.getMethod() + "(");
+			if (view.getParameters().size() > 0) {
 				out.println();
-			}
-			out.println("			 );");
+				for (var i = 0; i < view.getParameters().size(); i++) {
+					var parameter = view.getParameters().get(i);
+					// mapper.convertValue(, new TypeReference<List<MyDto>>() { })
+					out.print("         mapper.convertValue(");
+					out.print("request.get");
+					out.print(parameter.getType().name().substring(0, 1).toUpperCase());
+					out.print(parameter.getType().name().substring(1).toLowerCase());
+					out.print("(), new TypeReference<");
+					out.print(parameter.getClassName());
+					out.print(">() { })");
+					if (i < view.getParameters().size() - 1) {
+						out.print(",");
+					}
+					out.println();
+				}
+				out.println("			 );");
+			} else
+				out.println(");");
 			if (!returns)
 				out.println("       break;");
 		});
@@ -258,7 +315,7 @@ public class AppProcessor extends AbstractProcessor {
 	}
 
 	private static enum ViewParameter implements AnnotatedParameter {
-		DATA(View.Data.class), PROPS(View.Props.class), CONTEXT(View.Context.class);
+		DATA(AppView.Data.class), PROPS(AppView.Props.class), CONTEXT(AppView.Context.class);
 
 		private final Class<? extends Annotation> annotation;
 
@@ -274,7 +331,7 @@ public class AppProcessor extends AbstractProcessor {
 	}
 
 	private static enum ListenerParameter implements AnnotatedParameter {
-		PROPS(Listener.Props.class), API(Listener.Api.class);
+		PROPS(AppListener.Props.class), API(AppListener.Api.class);
 
 		private final Class<? extends Annotation> annotation;
 

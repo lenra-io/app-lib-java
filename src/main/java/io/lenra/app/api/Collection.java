@@ -4,7 +4,7 @@ import java.util.Map;
 
 public class Collection extends AbstractCollection<Map<String, Object>> {
 
-	public Collection(AbstractDataApi api, String name) {
+	Collection(AbstractDataApi api, String name) {
 		super(api, name);
 	}
 

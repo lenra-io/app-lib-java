@@ -483,13 +483,26 @@ class Class extends Element {
     let content: string[] = [];
 
     // Add fields
-    if (this instanceof Class && this.fields.size > 0) {
+    if (this.fields.size > 0) {
       content.push("// Fields");
-      this.fields.forEach(f =>
+      const mapFields:Field[] = [];
+      this.fields.forEach(f => {
         content.push(
           ...f.generateLines()
-        )
-      );
+        );
+        if (f.finalValue===undefined && f.type.instanceof(ClassInfos.base.map)) 
+          mapFields.push(f);
+      });
+
+      if (mapFields.length > 0) {
+        content.push("", "// Additional setters");
+        mapFields.forEach(f => {
+          content.push(`public void set${f.name.substring(0, 1).toUpperCase()}${f.name.substring(1)}(Object ${f.name}) {`);
+          content.push("  var mapper = new com.fasterxml.jackson.databind.ObjectMapper();");
+          content.push(`  this.${f.name} = mapper.convertValue(${f.name}, new com.fasterxml.jackson.core.type.TypeReference<${f.type.formatName()}>() { });`);
+          content.push("}");
+        });
+      }
     }
 
     content.push(...super.generateContentLines());

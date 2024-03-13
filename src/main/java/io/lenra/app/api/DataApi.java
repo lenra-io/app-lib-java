@@ -6,7 +6,7 @@ import io.lenra.api.internal.ApiException;
 public class DataApi extends AbstractDataApi {
     private final Api api;
 
-    public DataApi(Api api) {
+    DataApi(Api api) {
         super(new io.lenra.api.internal.client.DataApi());
 
         this.api = api;

@@ -4,7 +4,7 @@ import io.lenra.api.internal.ApiException;
 import io.lenra.api.internal.client.DataApi;
 
 public class Transaction extends AbstractDataApi {
-    public Transaction(DataApi api) {
+    Transaction(DataApi api) {
         super(api);
     }
 

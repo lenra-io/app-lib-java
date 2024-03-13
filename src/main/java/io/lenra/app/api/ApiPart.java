@@ -6,7 +6,7 @@ import java.util.Map;
 public abstract class ApiPart {
     private final Api api;
 
-    public ApiPart(Api api) {
+    ApiPart(Api api) {
         this.api = api;
     }
 

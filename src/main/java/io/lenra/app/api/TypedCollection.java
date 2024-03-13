@@ -13,7 +13,7 @@ public class TypedCollection<D extends Data> extends AbstractCollection<D> {
 
 	private final Class<D> collClass;
 
-	public TypedCollection(AbstractDataApi api, Class<D> collClass) {
+	TypedCollection(AbstractDataApi api, Class<D> collClass) {
 		super(api, DataApi.collectionName(collClass));
 		this.collClass = collClass;
 	}

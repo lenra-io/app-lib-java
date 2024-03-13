@@ -8,11 +8,11 @@ import io.lenra.api.internal.client.model.DataOptions;
 import io.lenra.api.internal.client.model.FindDocumentsRequest;
 import io.lenra.api.internal.client.model.UpdateManyDocumentsRequest;
 
-public abstract class AbstractCollection<T> {
+abstract class AbstractCollection<T> {
 	private final AbstractDataApi api;
 	private final String name;
 
-	public AbstractCollection(AbstractDataApi api, String name) {
+	AbstractCollection(AbstractDataApi api, String name) {
 		this.api = api;
 		this.name = name;
 	}

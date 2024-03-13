@@ -7,13 +7,9 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.SOURCE)
-public @interface View {
+public @interface AppListener {
 	String name() default "";
-
-
-	@Target(ElementType.PARAMETER)
-	@Retention(RetentionPolicy.SOURCE)
-	public static @interface Data {}
+	String prefix() default "";
 
 	@Target(ElementType.PARAMETER)
 	@Retention(RetentionPolicy.SOURCE)
@@ -21,5 +17,5 @@ public @interface View {
 
 	@Target(ElementType.PARAMETER)
 	@Retention(RetentionPolicy.SOURCE)
-	public static @interface Context {}
+	public static @interface Api {}
 }

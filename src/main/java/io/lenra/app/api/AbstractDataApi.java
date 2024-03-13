@@ -3,10 +3,10 @@ package io.lenra.app.api;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class AbstractDataApi {
-	public io.lenra.api.internal.client.DataApi api;
+abstract class AbstractDataApi {
+	io.lenra.api.internal.client.DataApi api;
 
-	public AbstractDataApi(io.lenra.api.internal.client.DataApi api) {
+	AbstractDataApi(io.lenra.api.internal.client.DataApi api) {
 		this.api = api;
 	}
 
