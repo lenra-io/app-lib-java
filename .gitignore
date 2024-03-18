@@ -31,9 +31,6 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-# Ignore Lenra API files
-/api/
-
 ### STS ###
 .apt_generated
 .classpath
@@ -65,3 +62,6 @@ build/
 
 /bin/
 !/gradle/wrapper/gradle-wrapper.jar
+
+# Ignore Lenra API files
+/api/api/

@@ -2,13 +2,14 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync } from "fs";
 import { resolve, dirname } from "path";
 
 const basePackage = "io.lenra.api";
-const basePath = process.argv[2] ?? "build/test/lenraApi";
+const sourceBasePath = process.argv[2] ?? "src/main/java";
+const generatedBasePath = process.argv[3] ?? "build/test/lenraApi";
 
 const baseIndentation = "  ";
 
-const packagePath = resolve(basePath, ...basePackage.split("."));
+const packagePath = resolve(generatedBasePath, ...basePackage.split("."));
 
-rmSync(basePath, { recursive: true, force: true });
+rmSync(generatedBasePath, { recursive: true, force: true });
 
 const langPackage = "java.lang";
 
@@ -31,6 +32,7 @@ function renameKeys<T extends { [P in keyof T]: T[P] }, P extends string = strin
 }
 
 type Package = string;
+type AccessModifier = "public" | "protected" | "private" | null;
 
 class ClassInfos {
   static primitives = {
@@ -63,7 +65,9 @@ class ClassInfos {
   }
   static lombokBase = {
     data: new ClassInfos("lombok", "Data"),
-    builder: new ClassInfos("lombok", "Builder"),
+    getter: new ClassInfos("lombok", "Getter"),
+    setter: new ClassInfos("lombok", "Setter"),
+    // builder: new ClassInfos("lombok", "Builder"),
     singular: new ClassInfos("lombok", "Singular"),
     noArgsConstructor: new ClassInfos("lombok", "NoArgsConstructor"),
     requiredArgsConstructor: new ClassInfos("lombok", "RequiredArgsConstructor"),
@@ -71,7 +75,7 @@ class ClassInfos {
     nonNull: new ClassInfos("lombok", "NonNull"),
   }
   static lombokSubTypes = {
-    builderDefault: new ClassInfos(this.lombokBase.builder, "Default"),
+    // builderDefault: new ClassInfos(this.lombokBase.builder, "Default"),
   }
   static lombok = {
     ...this.lombokBase,
@@ -144,6 +148,7 @@ abstract class Element extends ClassInfos {
   private static sourceRefs: { [ref: string]: Element } = {}
   private static currentFileSchema: any
 
+  accessModifier: AccessModifier = "public"
   readonly source: string
   protected imports: Set<ClassInfos> = new Set()
   protected annotations: Set<string> = new Set()
@@ -157,10 +162,6 @@ abstract class Element extends ClassInfos {
 
   get baseElement(): ClassInfos {
     return this.parent instanceof ClassInfos ? this.parent.baseElement : this;
-  }
-
-  addDefaultValues() {
-    this.children.forEach(c => c.addDefaultValues());
   }
 
   addImport(def: ClassInfos) {
@@ -209,7 +210,8 @@ abstract class Element extends ClassInfos {
       }
     }
     if (this.annotations.size > 0) {
-      content.push(...[...this.annotations].sort());
+      // content.push(...[...this.annotations].sort());
+      content.push(...this.annotations);
     }
     content.push(this.generateBlockDeclaration() + " {");
 
@@ -283,8 +285,10 @@ abstract class Element extends ClassInfos {
         }
         // generate a sub class for the object
         const element = this.parseClass(schema, ref, parent);
-        if (element.fields.size === 0)
+        if (element.fields.size === 0) {
           element.extends = ClassInfos.refs.hashMap.clone([ClassInfos.primitives.string, ClassInfos.refs.object]);
+          element.addImport(element.extends);
+        }
         return element;
 
       case "array":
@@ -368,16 +372,55 @@ abstract class Element extends ClassInfos {
             }
             field.annotations.push(annotation);
           }
-          if (fieldType.instanceof(ClassInfos.refs.map) && fieldType.subTypes?.[0].instanceof(ClassInfos.base.string)) {
-            const setter = new Method();
-            setter.name = `set${normalizedPropertyName.substring(0, 1).toUpperCase()}${normalizedPropertyName.substring(1)}`;
-            setter.parameters.push({ name: normalizedPropertyName, type: ClassInfos.base.object });
-            setter.content.push("var mapper = new com.fasterxml.jackson.databind.ObjectMapper();");
-            setter.content.push(`this.${normalizedPropertyName} = mapper.convertValue(${normalizedPropertyName}, new com.fasterxml.jackson.core.type.TypeReference<${fieldType.formatName()}>() { });`);
-            element.addMethod(setter);
+          if (field.finalValue === undefined) {
+            // Builder methods
+            const setterName = `set${normalizedPropertyName.substring(0, 1).toUpperCase()}${normalizedPropertyName.substring(1)}`;
+            const method = new Method();
+            method.name = normalizedPropertyName;
+            method.parameters.push({ name: normalizedPropertyName, type: fieldType });
+            method.returnType = element;
+            method.content = [
+              `this.${setterName}(${normalizedPropertyName});`,
+              `return this;`
+            ];
+            element.addMethod(method);
           }
+          // if (fieldType.instanceof(ClassInfos.refs.map) && fieldType.subTypes?.[0].instanceof(ClassInfos.base.string)) {
+          //   const setter = new Method();
+          //   setter.name = `set${normalizedPropertyName.substring(0, 1).toUpperCase()}${normalizedPropertyName.substring(1)}`;
+          //   setter.parameters.push({ name: normalizedPropertyName, type: ClassInfos.base.object });
+          //   setter.content.push("var mapper = new com.fasterxml.jackson.databind.ObjectMapper();");
+          //   setter.content.push(`this.${normalizedPropertyName} = mapper.convertValue(${normalizedPropertyName}, new com.fasterxml.jackson.core.type.TypeReference<${fieldType.formatName()}>() { });`);
+          //   element.addMethod(setter);
+          // }
           element.addField(field);
         });
+      element.addImport(ClassInfos.refs.jacksonJsonInclude);
+      element.addAnnotation("@JsonInclude(JsonInclude.Include.NON_NULL)");
+
+      element.addImport(ClassInfos.refs.lombokGetter);
+      element.addAnnotation("@Getter");
+
+      element.addImport(ClassInfos.refs.lombokSetter);
+      element.addAnnotation("@Setter");
+
+      // element.addImport(ClassInfos.refs.lombokBuilder);
+      // element.addAnnotation("@Builder");
+
+      element.addImport(ClassInfos.refs.lombokNoArgsConstructor);
+      element.addAnnotation("@NoArgsConstructor");
+
+      element.addImport(ClassInfos.refs.lombokAllArgsConstructor);
+      element.addAnnotation("@AllArgsConstructor");
+
+      // Needed for builder, but if all args are non null, it conflicts with the RequiredArgsConstructor
+      const fields = [...element.fields];
+      const nonNullOrFinalFields = fields.filter(f => f.annotations.includes("@NonNull") || f.finalValue !== undefined);
+      const nonNullFields = fields.filter(f => f.annotations.includes("@NonNull"));
+      if (nonNullFields.length > 0 && nonNullOrFinalFields.length < fields.length) {
+        element.addImport(ClassInfos.refs.lombokRequiredArgsConstructor);
+        element.addAnnotation("@RequiredArgsConstructor");
+      }
     }
 
     return element;
@@ -397,16 +440,34 @@ abstract class Element extends ClassInfos {
     else
       this.files.push(element);
 
+
+    const implementations: ClassInfos[] = [];
     schema.oneOf.forEach((subSchema: any, i: number) => {
       const subElement = this.parseSchema(subSchema, `${ref}.oneOf.${i}`, element, true);
       if (subElement instanceof Element) {
-        element.addImplementation(subElement);
+        implementations.push(subElement);
+        element.addImport(subElement);
         subElement.addImplements(element);
       }
       else {
         throw new Error(`Invalid schema: ${ref}.oneOf.${i}. OneOf element is not an Element`);
       }
     });
+
+    element.addImport(ClassInfos.jackson.jsonTypeInfo);
+    element.addImport(ClassInfos.jackson.jsonTypeInfoId);
+    element.addAnnotation(`@JsonTypeInfo(use = Id.DEDUCTION, defaultImpl = ${implementations[implementations.length - 1].name}.class)`);
+
+    element.addImport(ClassInfos.jackson.jsonSubTypes);
+    element.addImport(ClassInfos.jackson.jsonSubTypesType);
+
+    element.addAnnotation(`@JsonSubTypes({ ${implementations
+      .map(i => {
+        element.addImport(i);
+        return `@Type(${i.name}.class)`;
+      })
+      .join(", ")
+      } })`);
 
     return element;
   }
@@ -426,8 +487,12 @@ abstract class Element extends ClassInfos {
     else
       this.files.push(element);
 
+    element.addImport(ClassInfos.jackson.jsonProperty);
+
     schema.enum.forEach((value: string) => {
-      element.addValue(value);
+      // Transform name to upper snake case
+      const normalizedValue = value.replace(/([a-z])([A-Z])/g, "$1_$2").toUpperCase();
+      element.addValue(new EnumValue(normalizedValue, [`@JsonProperty("${value}")`]));
     });
 
     return element;
@@ -460,39 +525,6 @@ class Class extends Element {
 
   addMethod(method: Method) {
     this.methods.add(method);
-  }
-
-  addDefaultValues(): void {
-    if (this.extends === undefined) {
-      this.addImport(ClassInfos.refs.jacksonJsonInclude);
-      this.addAnnotation("@JsonInclude(JsonInclude.Include.NON_NULL)");
-
-      this.addImport(ClassInfos.refs.lombokData);
-      this.addAnnotation("@Data");
-
-      this.addImport(ClassInfos.refs.lombokBuilder);
-      this.addAnnotation("@Builder");
-
-      this.addImport(ClassInfos.refs.lombokNoArgsConstructor);
-      this.addAnnotation("@NoArgsConstructor");
-
-      this.addImport(ClassInfos.refs.lombokAllArgsConstructor);
-      this.addAnnotation("@AllArgsConstructor");
-
-      // Needed for builder, but if all args are non null, it conflicts with the RequiredArgsConstructor
-      const fields = [...this.fields];
-      const nonNullOrFinalFields = fields.filter(f => f.annotations.includes("@NonNull") || f.finalValue !== undefined);
-      const nonNullFields = fields.filter(f => f.annotations.includes("@NonNull"));
-      if (nonNullFields.length > 0 && nonNullOrFinalFields.length < fields.length) {
-        this.addImport(ClassInfos.refs.lombokRequiredArgsConstructor);
-        this.addAnnotation("@RequiredArgsConstructor");
-      }
-    }
-    else {
-      this.addImport(this.extends);
-    }
-
-    super.addDefaultValues();
   }
 
   protected generateContentLines(): string[] {
@@ -539,7 +571,9 @@ class Class extends Element {
   }
 
   generateBlockDeclaration(): string {
-    let declaration = "public ";
+    let declaration = "";
+    if (this.accessModifier !== null)
+      declaration += `${this.accessModifier} `;
     if (this.parent instanceof Element) {
       declaration += "static ";
     }
@@ -555,37 +589,10 @@ class Class extends Element {
 }
 
 class Interface extends Element {
-  private implementations: Set<Element> = new Set();
-
-  addImplementation(impl: Element) {
-    this.addImport(impl);
-    this.implementations.add(impl);
-  }
-
-  addDefaultValues(): void {
-    if (this.implementations?.size ?? 0 > 0) {
-      const implementations = [...this.implementations];
-      this.addImport(ClassInfos.jackson.jsonTypeInfo);
-      this.addImport(ClassInfos.jackson.jsonTypeInfoId);
-      this.addAnnotation(`@JsonTypeInfo(use = Id.DEDUCTION, defaultImpl = ${implementations[implementations.length - 1].name}.class)`);
-
-      this.addImport(ClassInfos.jackson.jsonSubTypes);
-      this.addImport(ClassInfos.jackson.jsonSubTypesType);
-      implementations.forEach(i => this.addImport(i));
-      this.addAnnotation(`@JsonSubTypes({ ${implementations
-        .map(i => {
-          this.addImport(i);
-          return `@Type(${i.name}.class)`;
-        })
-        .join(", ")
-        } })`);
-    }
-
-    super.addDefaultValues();
-  }
-
   generateBlockDeclaration(): string {
-    let declaration = "public ";
+    let declaration = "";
+    if (this.accessModifier !== null)
+      declaration += `${this.accessModifier} `;
     if (this.parent instanceof Element) {
       declaration += "static ";
     }
@@ -597,27 +604,34 @@ class Interface extends Element {
   }
 }
 
-class Enum extends Element {
-  values: string[] = []
+class EnumValue {
+  annotations: string[]
+  name: string
+  arguments: string[] = []
 
-  addValue(value: string) {
+  constructor(name: string, annotations: string[] = []) {
+    this.name = name;
+    this.annotations = annotations;
+  }
+}
+
+class Enum extends Element {
+  values: EnumValue[] = []
+
+  addValue(value: EnumValue) {
     this.values.push(value);
   }
 
   generateBlockDeclaration(): string {
-    let declaration = "public ";
+    let declaration = "";
+    if (this.accessModifier !== null)
+      declaration += `${this.accessModifier} `;
     if (this.parent instanceof Element) {
       declaration += "static ";
     }
     declaration += `enum ${this.name}`;
 
     return declaration;
-  }
-
-  addDefaultValues(): void {
-    this.addImport(ClassInfos.jackson.jsonProperty);
-
-    super.addDefaultValues();
   }
 
   protected generateContentLines(): string[] {
@@ -627,10 +641,8 @@ class Enum extends Element {
       content.push("// Values");
       this.values
         .forEach((v, i, a) => {
-          // Transform name to upper snake case
-          const normalizedValue = v.replace(/([a-z])([A-Z])/g, "$1_$2").toUpperCase();
-          content.push(`@JsonProperty("${v}")`);
-          content.push(normalizedValue + (i < a.length - 1 ? "," : ";"));
+          content.push(...v.annotations);
+          content.push(v.name + (i < a.length - 1 ? "," : ";"));
         });
     }
 
@@ -663,6 +675,7 @@ interface Parameter {
 }
 
 class Method {
+  accessModifier: AccessModifier = "public"
   name: string
   returnType?: ClassInfos
   parameters: Parameter[] = []
@@ -671,7 +684,9 @@ class Method {
 
   generateLines(): string[] {
     let content: string[] = [];
-    let declaration = "public ";
+    let declaration = "";
+    if (this.accessModifier !== null)
+      declaration += `${this.accessModifier} `;
     if (this.static) declaration += "static ";
     declaration += `${this.returnType ? this.returnType.formatName() : "void"} ${this.name}(`;
     if (this.parameters.length > 0) {
@@ -738,12 +753,17 @@ for (let i = 0; i < schemata.length; i++) {
   Element.parse(schemata[i]);
 }
 
-Element.files.forEach(f => f.addDefaultValues());
-
-generateComponentsClass();
+// generateComponentsClass();
 
 Element.files.forEach(f => {
-  const filePath = resolve(basePath, ...f.parentFullName.split("."), `${f.name}.java`);
+  const filePath = resolve(generatedBasePath, ...f.parentFullName.split("."), `${f.name}.java`);
   mkdirSync(dirname(filePath), { recursive: true });
   writeFileSync(filePath, f.generate());
 });
+
+// const mainSchema = JSON.parse(readFileSync(resolve("api", viewSchama), "utf-8"));
+
+// const componentList = new Set([
+//   ...mainSchema.definitions["components.lenra"].oneOf,
+//   ...mainSchema.definitions["components.json"].oneOf,
+// ].map(c => c.$ref));

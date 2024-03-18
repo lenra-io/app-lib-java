@@ -1,0 +1,56 @@
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url = uri('https://jitpack.io')
+    }
+}
+
+dependencies {
+    api 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
+
+    def lombok = 'org.projectlombok:lombok:1.18.30'
+    compileOnly lombok
+	annotationProcessor lombok
+	testCompileOnly lombok
+	testAnnotationProcessor lombok
+
+    testImplementation 'junit:junit:4.13.2'
+}
+
+group = 'io.lenra'
+description = 'api'
+java.sourceCompatibility = JavaVersion.VERSION_17
+
+var lenraApiBuildDir = "${buildDir}/generated-sources/lenraApi"
+
+task generateApiClasses(type:Exec) {
+  commandLine 'bun', '../scripts/generateApiClasses.ts', project.sourceSets.main, lenraApiBuildDir
+
+  ext.output = {
+    return standardOutput.toString()
+  }
+}
+
+sourceSets {
+   main {
+      java {
+         srcDir lenraApiBuildDir
+      }
+   }
+}
+
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+
+    dependsOn tasks.generateApiClasses
+}
+
+tasks.withType(Javadoc) {
+    options.encoding = 'UTF-8'
+}

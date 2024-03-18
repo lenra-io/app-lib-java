@@ -3,3 +3,6 @@
  */
 
 rootProject.name = 'app'
+include 'api'
+include 'app'
+include 'compileOnly'

@@ -25,32 +25,24 @@ public class ManifestTestJava {
 	@Test
 	@Ignore
 	public void jsonBuilder() throws JsonProcessingException {
-		Manifest manifest = Manifest.builder()
-				.json(Exposer.builder()
-						.route(Route.builder()
-								.path("/counter/global")
-								.view(View.builder()
-										.name("counter")
-										.find(Find.builder()
-												.coll("counter")
-												.query(Map.of("user", "global"))
-												.build())
-										.build())
-								.role("guest")
-								.role("user")
-								.build())
-						.route(Route.builder()
-								.path("/counter/me")
-								.view(View.builder()
-										.name("counter")
-										.find(Find.builder()
-												.coll("counter")
-												.query(Map.of("user", "@me"))
-												.build())
-										.build())
-								.build())
-						.build())
-				.build();
+		Manifest manifest = new Manifest()
+				.json(new Exposer()
+						.routes(List.of(
+								new Route()
+										.path("/counter/global")
+										.view(new View()
+												.name("counter")
+												.find(new Find()
+														.coll("counter")
+														.query(Map.of("user", "global"))))
+										.roles(List.of("guest", "user")),
+								new Route()
+										.path("/counter/me")
+										.view(new View()
+												.name("counter")
+												.find(new Find()
+														.coll("counter")
+														.query(Map.of("user", "@me")))))));
 
 		assertEquals(
 				JSON_MANIFEST,

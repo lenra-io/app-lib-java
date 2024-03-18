@@ -1,0 +1,24 @@
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url = uri('https://jitpack.io')
+    }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+}
+
+group = 'io.lenra'
+description = 'compileOnly'
+java.sourceCompatibility = JavaVersion.VERSION_17
+
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
