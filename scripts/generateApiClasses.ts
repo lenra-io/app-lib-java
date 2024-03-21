@@ -1,9 +1,14 @@
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 
-const basePackage = "io.lenra.api";
-const sourceBasePath = process.argv[2] ?? "src/main/java";
-const generatedBasePath = process.argv[3] ?? "build/test/lenraApi";
+let argIt = 2;
+
+const apiDir = process.argv[argIt++];
+const sourceBasePath = process.argv[argIt++];
+const generatedBasePath = process.argv[argIt++];
+const basePackage = "io.lenra.app";
+
+const generatedAnnotation = '@Generated("JSON Schema")';
 
 const baseIndentation = "  ";
 
@@ -48,6 +53,7 @@ class ClassInfos {
     map: new ClassInfos("java.util", "Map"),
     arrayList: new ClassInfos("java.util", "ArrayList"),
     hashMap: new ClassInfos("java.util", "HashMap"),
+    generated: new ClassInfos("javax.annotation.processing", "Generated"),
   }
   private static jacksonBase = {
     jsonInclude: new ClassInfos("com.fasterxml.jackson.annotation", "JsonInclude"),
@@ -180,6 +186,10 @@ abstract class Element extends ClassInfos {
     this.annotations.add(def)
   }
 
+  hasAnnotation(def: string) {
+    return this.annotations.has(def);
+  }
+
   addImplements(def: Interface) {
     this.addImport(def);
     this.implements.add(def)
@@ -248,7 +258,7 @@ abstract class Element extends ClassInfos {
   static parse(fileSchema: string, parent?: Element): Element {
     // if (this.sourceRefs[ref]) return this.sourceRefs[ref];
     // TODO: save the schema for the file path
-    this.currentFileSchema = JSON.parse(readFileSync(resolve("api", fileSchema), "utf-8"));
+    this.currentFileSchema = JSON.parse(readFileSync(resolve(apiDir, fileSchema), "utf-8"));
     const ref = "#";
     const schema = this.getSchemaForRef(ref);
     const element = this.parseSchema(schema, ref, parent);
@@ -284,12 +294,7 @@ abstract class Element extends ClassInfos {
           return ClassInfos.refs.map.clone([ClassInfos.primitives.string, ClassInfos.refs.object]);
         }
         // generate a sub class for the object
-        const element = this.parseClass(schema, ref, parent);
-        if (element.fields.size === 0) {
-          element.extends = ClassInfos.refs.hashMap.clone([ClassInfos.primitives.string, ClassInfos.refs.object]);
-          element.addImport(element.extends);
-        }
-        return element;
+        return this.parseClass(schema, ref, parent);
 
       case "array":
         let generatedClass: Class | undefined;
@@ -297,6 +302,7 @@ abstract class Element extends ClassInfos {
         //   generatedClass = this.parseClass(schema, ref, parent);
         //   parent = generatedClass;
         // }
+        if (!schema.items) throw new Error(`Invalid array type: ${ref}. Array items not defined`);
         const subType = this.parseSchema(schema.items, `${ref}.items`, parent);
         if (subType instanceof ConstValue) throw new Error(`Invalid array type: ${ref}. Array items cannot be a const`);
         const array = ClassInfos.refs.list.clone([subType]);
@@ -330,16 +336,36 @@ abstract class Element extends ClassInfos {
     if (this.sourceRefs[ref] instanceof Class) return this.sourceRefs[ref] as Class;
     if (this.sourceRefs[ref]) throw new Error(`Invalid ref: ${ref}. Element already exists but it's not a class`);
 
+    let { name, parent: packageName } = this.getClassFromRef(ref);
+    name = schema.title ?? name;
+    // Create the base class
+    let parentBase: Element | undefined;
+    if (parent) {
+      if (parent instanceof Class) {
+        if (parent.extends instanceof Element)
+          parentBase = parent.extends;
+      }
+    }
+    const baseElement = new Class(parentBase ?? packageName, `${name}Base`, ref);
+    baseElement.addAnnotation(generatedAnnotation);
+    baseElement.addImport(ClassInfos.base.generated);
+    baseElement.accessModifier = null;
     // Create the class
-    const { name, parent: packageName } = this.getClassFromRef(ref);
-    const element = new Class(parent ?? packageName, schema.title ?? name, ref);
+    const element = new Class(parent ?? packageName, name, ref);
+    element.extends = baseElement;
 
     // Add the class to the sourceRefs
     this.sourceRefs[ref] = element;
-    if (parent)
+    if (parent) {
       parent.addChild(element);
+      if (parentBase) {
+        parentBase.addChild(baseElement);
+      }
+    }
     else
-      this.files.push(element);
+      this.files.push(element, baseElement);
+
+    const methods = new Set<Method>();
 
     // Add the fields
     if (schema.properties) {
@@ -352,20 +378,20 @@ abstract class Element extends ClassInfos {
           const field = new Field();
           field.name = normalizedPropertyName;
           if (normalizedPropertyName !== propertyName) {
-            element.addImport(ClassInfos.jackson.jsonProperty);
+            baseElement.addImport(ClassInfos.jackson.jsonProperty);
             field.annotations.push(`@JsonProperty("${propertyName}")`);
           }
-          element.addImport(fieldType);
+          baseElement.addImport(fieldType);
           field.type = fieldType;
           if (res instanceof ConstValue) {
             field.finalValue = res.value;
           }
           else if (required.includes(propertyName)) {
-            element.addImport(ClassInfos.lombok.nonNull);
+            baseElement.addImport(ClassInfos.lombok.nonNull);
             field.annotations.push("@NonNull");
           }
           if (fieldType.instanceof(ClassInfos.refs.list) || fieldType.instanceof(ClassInfos.refs.map)) {
-            element.addImport(ClassInfos.lombok.singular);
+            baseElement.addImport(ClassInfos.lombok.singular);
             let annotation = "@Singular";
             if (!normalizedPropertyName.endsWith("s")) {
               annotation += `("${normalizedPropertyName}Item")`;
@@ -374,7 +400,7 @@ abstract class Element extends ClassInfos {
           }
           if (field.finalValue === undefined) {
             // Builder methods
-            const setterName = `set${normalizedPropertyName.substring(0, 1).toUpperCase()}${normalizedPropertyName.substring(1)}`;
+            const setterName = toSetterName(normalizedPropertyName);
             const method = new Method();
             method.name = normalizedPropertyName;
             method.parameters.push({ name: normalizedPropertyName, type: fieldType });
@@ -383,44 +409,67 @@ abstract class Element extends ClassInfos {
               `this.${setterName}(${normalizedPropertyName});`,
               `return this;`
             ];
-            element.addMethod(method);
+            methods.add(method);
           }
-          // if (fieldType.instanceof(ClassInfos.refs.map) && fieldType.subTypes?.[0].instanceof(ClassInfos.base.string)) {
-          //   const setter = new Method();
-          //   setter.name = `set${normalizedPropertyName.substring(0, 1).toUpperCase()}${normalizedPropertyName.substring(1)}`;
-          //   setter.parameters.push({ name: normalizedPropertyName, type: ClassInfos.base.object });
-          //   setter.content.push("var mapper = new com.fasterxml.jackson.databind.ObjectMapper();");
-          //   setter.content.push(`this.${normalizedPropertyName} = mapper.convertValue(${normalizedPropertyName}, new com.fasterxml.jackson.core.type.TypeReference<${fieldType.formatName()}>() { });`);
-          //   element.addMethod(setter);
-          // }
-          element.addField(field);
+          baseElement.addField(field);
         });
-      element.addImport(ClassInfos.refs.jacksonJsonInclude);
-      element.addAnnotation("@JsonInclude(JsonInclude.Include.NON_NULL)");
+      baseElement.addImport(ClassInfos.refs.jacksonJsonInclude);
+      baseElement.addAnnotation("@JsonInclude(JsonInclude.Include.NON_NULL)");
 
-      element.addImport(ClassInfos.refs.lombokGetter);
-      element.addAnnotation("@Getter");
+      baseElement.addImport(ClassInfos.refs.lombokGetter);
+      baseElement.addAnnotation("@Getter");
 
-      element.addImport(ClassInfos.refs.lombokSetter);
-      element.addAnnotation("@Setter");
+      baseElement.addImport(ClassInfos.refs.lombokSetter);
+      baseElement.addAnnotation("@Setter");
 
-      // element.addImport(ClassInfos.refs.lombokBuilder);
-      // element.addAnnotation("@Builder");
+      baseElement.addImport(ClassInfos.refs.lombokNoArgsConstructor);
+      baseElement.addAnnotation("@NoArgsConstructor");
 
-      element.addImport(ClassInfos.refs.lombokNoArgsConstructor);
-      element.addAnnotation("@NoArgsConstructor");
-
-      element.addImport(ClassInfos.refs.lombokAllArgsConstructor);
-      element.addAnnotation("@AllArgsConstructor");
+      // Create constructors
+      let constructor = new Constructor(element);
+      constructor.content.push("super();");
+      element.addMethod(constructor);
 
       // Needed for builder, but if all args are non null, it conflicts with the RequiredArgsConstructor
-      const fields = [...element.fields];
-      const nonNullOrFinalFields = fields.filter(f => f.annotations.includes("@NonNull") || f.finalValue !== undefined);
-      const nonNullFields = fields.filter(f => f.annotations.includes("@NonNull"));
-      if (nonNullFields.length > 0 && nonNullOrFinalFields.length < fields.length) {
-        element.addImport(ClassInfos.refs.lombokRequiredArgsConstructor);
-        element.addAnnotation("@RequiredArgsConstructor");
+      const fields = [...baseElement.fields];
+      const nonConstFields = fields.filter(f => f.finalValue === undefined);
+      const requiredFields = nonConstFields.filter(f => f.annotations.includes("@NonNull"));
+
+      if (requiredFields.length > 0) {
+        // RequiredArgsConstructor
+
+        // Not needed anymore
+        // baseElement.addImport(ClassInfos.refs.lombokRequiredArgsConstructor);
+        // baseElement.addAnnotation("@RequiredArgsConstructor");
+
+        constructor = new Constructor(element);
+        requiredFields.forEach(f => {
+          constructor.parameters.push({ name: f.name, type: f.type });
+          constructor.content.push(`this.${toSetterName(f.name)}(${f.name});`);
+        });
+        element.addMethod(constructor);
       }
+      if (nonConstFields.length > requiredFields.length) {
+        // AllArgsConstructor
+
+        // Not needed anymore
+        // baseElement.addImport(ClassInfos.refs.lombokAllArgsConstructor);
+        // baseElement.addAnnotation("@AllArgsConstructor");
+
+        constructor = new Constructor(element);
+        constructor.content.push("super();");
+        nonConstFields.forEach(f => {
+          constructor.parameters.push({ name: f.name, type: f.type });
+          constructor.content.push(`this.${toSetterName(f.name)}(${f.name});`);
+        });
+        element.addMethod(constructor);
+      }
+
+      methods.forEach(m => element.addMethod(m));
+    }
+    else {
+      baseElement.extends = ClassInfos.refs.hashMap.clone([ClassInfos.primitives.string, ClassInfos.refs.object]);
+      baseElement.addImport(baseElement.extends);
     }
 
     return element;
@@ -481,6 +530,9 @@ abstract class Element extends ClassInfos {
 
     const element = new Enum(parent ?? packageName, schema.title ?? name, ref);
 
+    element.addAnnotation(generatedAnnotation);
+    element.addImport(ClassInfos.base.generated);
+
     this.sourceRefs[ref] = element;
     if (parent)
       parent.addChild(element);
@@ -525,6 +577,9 @@ class Class extends Element {
 
   addMethod(method: Method) {
     this.methods.add(method);
+    if (method.returnType)
+      this.addImport(method.returnType);
+    method.parameters.forEach(p => this.addImport(p.type));
   }
 
   protected generateContentLines(): string[] {
@@ -544,7 +599,17 @@ class Class extends Element {
     }
 
     // Add methods
-    const instanceMethods = [...this.methods].filter(m => !m.static);
+    const instanceConstructors = [...this.methods].filter(m => !m.static && m instanceof Constructor);
+    if (instanceConstructors.length > 0) {
+      content.push("", "// Constructors");
+      instanceConstructors.forEach(m => {
+        content.push(
+          ...m.generateLines(),
+          ""
+        );
+      });
+    }
+    const instanceMethods = [...this.methods].filter(m => !m.static && !(m instanceof Constructor));
     if (instanceMethods.length > 0) {
       content.push("", "// Methods");
       instanceMethods.forEach(m => {
@@ -682,8 +747,7 @@ class Method {
   content: string[] = []
   static: boolean = false
 
-  generateLines(): string[] {
-    let content: string[] = [];
+  generateBlockDeclaration(): string {
     let declaration = "";
     if (this.accessModifier !== null)
       declaration += `${this.accessModifier} `;
@@ -692,11 +756,35 @@ class Method {
     if (this.parameters.length > 0) {
       declaration += this.parameters.map(p => `${p.type.formatName()} ${p.name}`).join(", ");
     }
-    declaration += ") {";
-    content.push(declaration);
+    declaration += ")";
+    return declaration;
+  }
+
+  generateLines(): string[] {
+    let content: string[] = [];
+    content.push(`${this.generateBlockDeclaration()} {`);
     content.push(...this.content.map(l => indent(l, baseIndentation)));
     content.push("}");
     return content;
+  }
+}
+
+class Constructor extends Method {
+  constructor(classElement: Class) {
+    super();
+    this.name = classElement.name;
+  }
+
+  generateBlockDeclaration(): string {
+    let declaration = "";
+    if (this.accessModifier !== null)
+      declaration += `${this.accessModifier} `;
+    declaration += `${this.name}(`;
+    if (this.parameters.length > 0) {
+      declaration += this.parameters.map(p => `${p.type.formatName()} ${p.name}`).join(", ");
+    }
+    declaration += ")";
+    return declaration;
   }
 }
 
@@ -710,11 +798,12 @@ function generateComponentsClass() {
   componentsClass.addImport(ClassInfos.lenra.filler);
   // get all components classes
   Element.files
-    .filter(f => f instanceof Class && f.parent === `${basePackage}.components`)
+    .filter(f => f instanceof Class && f.parent === `${basePackage}.components` && !f.hasAnnotation(generatedAnnotation))
     .map(c => c as Class)
     // for each class, generate 2 static methods: one with the same arguments as the constructor and another adding a filler
     .forEach(c => {
-      const parameters = [...c.fields]
+      const parentClass = c.extends as Class;
+      const parameters = [...parentClass.fields]
         // not final
         .filter(f => f.finalValue === undefined)
         // having the @NonNull annotation
@@ -753,17 +842,17 @@ for (let i = 0; i < schemata.length; i++) {
   Element.parse(schemata[i]);
 }
 
-// generateComponentsClass();
+generateComponentsClass();
 
 Element.files.forEach(f => {
-  const filePath = resolve(generatedBasePath, ...f.parentFullName.split("."), `${f.name}.java`);
+  const generated = f.hasAnnotation(generatedAnnotation);
+  const basePath = generated ? generatedBasePath : sourceBasePath;
+  const filePath = resolve(basePath, ...f.parentFullName.split("."), `${f.name}.java`);
   mkdirSync(dirname(filePath), { recursive: true });
+  if (!generated && existsSync(filePath)) return;
   writeFileSync(filePath, f.generate());
 });
 
-// const mainSchema = JSON.parse(readFileSync(resolve("api", viewSchama), "utf-8"));
-
-// const componentList = new Set([
-//   ...mainSchema.definitions["components.lenra"].oneOf,
-//   ...mainSchema.definitions["components.json"].oneOf,
-// ].map(c => c.$ref));
+function toSetterName(fieldName: string): string {
+  return `set${fieldName.substring(0, 1).toUpperCase()}${fieldName.substring(1)}`;
+}

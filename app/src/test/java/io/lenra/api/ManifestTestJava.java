@@ -1,5 +1,6 @@
 package io.lenra.api;
 
+import static io.lenra.app.components.Components.view;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
@@ -11,9 +12,11 @@ import org.junit.Test;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.lenra.api.components.View;
-import io.lenra.api.components.view.definitions.Find;
-import static io.lenra.api.components.Components.*;
+import io.lenra.app.Exposer;
+import io.lenra.app.Manifest;
+import io.lenra.app.Route;
+import io.lenra.app.components.View;
+import io.lenra.app.components.view.definitions.Find;
 
 /**
  * Unit test for simple App.

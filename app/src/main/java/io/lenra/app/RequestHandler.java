@@ -2,12 +2,10 @@ package io.lenra.app;
 
 import java.io.IOException;
 
-import io.lenra.api.AppRequest;
-import io.lenra.api.ListenerRequest;
-import io.lenra.api.Manifest;
-import io.lenra.api.ResourceRequest;
-import io.lenra.api.ViewRequest;
 import io.lenra.app.exception.NotFoundException;
+import io.lenra.app.requests.ListenerRequest;
+import io.lenra.app.requests.ResourceRequest;
+import io.lenra.app.requests.ViewRequest;
 import lombok.Getter;
 
 public abstract class RequestHandler {

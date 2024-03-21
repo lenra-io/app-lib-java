@@ -64,4 +64,4 @@ build/
 !/gradle/wrapper/gradle-wrapper.jar
 
 # Ignore Lenra API files
-/api/api/
+/api/

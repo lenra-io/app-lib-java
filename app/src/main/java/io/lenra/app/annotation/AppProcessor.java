@@ -35,7 +35,8 @@ public class AppProcessor extends AbstractProcessor {
 
 	@Override
 	public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-		String manifestClass = null;
+		// String manifestClass = null;
+		String manifestMethod = null;
 		Map<String, MethodRef<ViewParameter>> views = new HashMap<>();
 		Map<String, MethodRef<ListenerParameter>> listeners = new HashMap<>();
 		// TODO: manage resources
@@ -50,8 +51,13 @@ public class AppProcessor extends AbstractProcessor {
 				if (annotatedElements.isEmpty()) {
 					throw new IllegalArgumentException("No manifest");
 				}
-				manifestClass = processingEnv.getElementUtils()
-						.getBinaryName((TypeElement) annotatedElements.iterator().next()).toString();
+				ExecutableElement method = (ExecutableElement) annotatedElements.iterator().next();
+				// parseMethod(annotatedElements, ManifestParameter.class, AppManifest.class,
+				// null, null, null);
+				manifestMethod = processingEnv.getElementUtils()
+						.getBinaryName((TypeElement) method.getEnclosingElement()) + "." + method.getSimpleName();
+				// manifestClass = processingEnv.getElementUtils()
+				// .getBinaryName((TypeElement) annotatedElements.iterator().next()).toString();
 
 			} else if (annotation.getQualifiedName().toString().equals(AppView.class.getName())) {
 				parseMethods(views, ViewParameter.class, AppView.class,
@@ -70,7 +76,7 @@ public class AppProcessor extends AbstractProcessor {
 			try {
 				this.writeNamesEnum("io.lenra.app.view", "ViewName", views);
 				this.writeNamesEnum("io.lenra.app.listener", "ListenerName", listeners);
-				this.writeRequestHandlerClass(manifestClass, views, listeners);
+				this.writeRequestHandlerClass(manifestMethod, views, listeners);
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -127,7 +133,7 @@ public class AppProcessor extends AbstractProcessor {
 			var param = parameters.get(i);
 			T type = null;
 			for (T t : values) {
-				if (param.getAnnotation(t.annotation()) != null) {
+				if (param.getAnnotation(t.getAnnotation()) != null) {
 					type = t;
 					break;
 				}
@@ -189,7 +195,7 @@ public class AppProcessor extends AbstractProcessor {
 		}
 	}
 
-	private void writeRequestHandlerClass(String manifestClass, Map<String, MethodRef<ViewParameter>> views,
+	private void writeRequestHandlerClass(String manifestMethod, Map<String, MethodRef<ViewParameter>> views,
 			Map<String, MethodRef<ListenerParameter>> listeners) throws IOException {
 		String packageName = "io.lenra.app";
 		String className = "RequestHandlerImpl";
@@ -224,7 +230,7 @@ public class AppProcessor extends AbstractProcessor {
 			out.println(" @Inject");
 			out.println(" private ObjectMapper mapper;");
 
-			out.println(" private " + manifestClass + " manifest = new " + manifestClass + "();");
+			out.println(" private Manifest manifest = " + manifestMethod + "();");
 			out.println();
 
 			out.println(" @Override");
@@ -313,7 +319,7 @@ public class AppProcessor extends AbstractProcessor {
 	}
 
 	private static interface AnnotatedParameter {
-		<A extends Annotation> Class<A> annotation();
+		Class<? extends Annotation> getAnnotation();
 	}
 
 	private static enum ViewParameter implements AnnotatedParameter {
@@ -325,9 +331,8 @@ public class AppProcessor extends AbstractProcessor {
 			this.annotation = annotation;
 		}
 
-		@SuppressWarnings("unchecked")
 		@Override
-		public Class<? extends Annotation> annotation() {
+		public Class<? extends Annotation> getAnnotation() {
 			return this.annotation;
 		}
 	}
@@ -341,9 +346,8 @@ public class AppProcessor extends AbstractProcessor {
 			this.annotation = annotation;
 		}
 
-		@SuppressWarnings("unchecked")
 		@Override
-		public Class<? extends Annotation> annotation() {
+		public Class<? extends Annotation> getAnnotation() {
 			return this.annotation;
 		}
 	}

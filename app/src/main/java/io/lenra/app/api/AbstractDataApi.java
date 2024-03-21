@@ -3,6 +3,8 @@ package io.lenra.app.api;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.lenra.app.data.Data;
+
 abstract class AbstractDataApi {
 	io.lenra.api.internal.client.DataApi api;
 

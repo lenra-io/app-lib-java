@@ -15,10 +15,11 @@ repositories {
 
 dependencies {
     compileOnly project(':compileOnly')
-    implementation project(':api')
+    // implementation project(':api')
     api 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
     api 'jakarta.inject:jakarta.inject-api:2.0.0'
-    api 'com.github.lenra-io:internal-api-client-lib-java:upgrade-SNAPSHOT'
+    // api 'com.github.lenra-io:internal-api-client-lib-java:upgrade-SNAPSHOT'
+    api 'io.lenra:lenra-internal-api-client:1.0.0-SNAPSHOT'
 
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.codehaus.groovy:groovy-all:2.4.15'
@@ -53,8 +54,28 @@ publishing {
     }
 }
 
+var lenraApiBuildDir = "${buildDir}/generated-sources/lenraApi"
+
+task generateApiClasses(type:Exec) {
+  commandLine 'bun', new File(rootDir, 'scripts/generateApiClasses.ts'), new File(rootDir, 'api'), project.sourceSets.main.java.srcDirs[0], lenraApiBuildDir
+
+  ext.output = {
+    return standardOutput.toString()
+  }
+}
+
+sourceSets {
+   main {
+      java {
+         srcDir lenraApiBuildDir
+      }
+   }
+}
+
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
+
+    dependsOn tasks.generateApiClasses
 }
 
 tasks.withType(Javadoc) {

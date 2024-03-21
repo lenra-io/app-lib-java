@@ -2,6 +2,7 @@ package io.lenra.app.api;
 
 import io.lenra.api.internal.ApiClient;
 import io.lenra.api.internal.ApiException;
+import io.lenra.app.data.Data;
 
 public class DataApi extends AbstractDataApi {
 	private final Api api;

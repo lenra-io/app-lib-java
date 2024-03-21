@@ -6,6 +6,8 @@ import java.util.Map;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.lenra.app.data.Data;
+
 public class TypedCollection<D extends Data> extends AbstractCollection<D> {
 	private static ObjectMapper MAPPER = new ObjectMapper();
 	private static TypeReference<HashMap<String, Object>> MAP_TYPE_REF = new TypeReference<HashMap<String, Object>>() {
