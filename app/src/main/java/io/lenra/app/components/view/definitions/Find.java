@@ -1,5 +1,7 @@
 package io.lenra.app.components.view.definitions;
 
+import io.lenra.app.api.DataApi;
+import io.lenra.app.data.Data;
 import io.lenra.app.data.Options;
 import java.util.Map;
 
@@ -10,9 +12,17 @@ public class Find extends FindBase {
     super();
   }
 
+  public <D extends Data> Find(Class<D> collClass, Map<String, Object> query) {
+    this(DataApi.collectionName(collClass), query);
+  }
+
   public Find(String coll, Map<String, Object> query) {
     this.setColl(coll);
     this.setQuery(query);
+  }
+
+  public <D extends Data> Find(Class<D> collClass, Map<String, Object> query, Map<String, Object> projection, Options options) {
+    this(DataApi.collectionName(collClass), query, projection, options);
   }
 
   public Find(String coll, Map<String, Object> query, Map<String, Object> projection, Options options) {
@@ -25,6 +35,10 @@ public class Find extends FindBase {
 
 
   // Methods
+  public <D extends Data> Find coll(Class<D> collClass) {
+    return this.coll(DataApi.collectionName(collClass));
+  }
+	
   public Find coll(String coll) {
     this.setColl(coll);
     return this;

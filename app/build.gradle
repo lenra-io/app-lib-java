@@ -1,25 +1,26 @@
+// buildscript {
+//     repositories {
+//         mavenCentral()
+//     }
+// }
+
 plugins {
     id 'java-library'
     id 'groovy'
     id 'org.jetbrains.kotlin.jvm' version '1.9.22'
-    id 'maven-publish'
+    id 'com.vanniktech.maven.publish' version '0.28.0'
 }
 
 repositories {
     mavenLocal()
     mavenCentral()
-    maven {
-        url = uri('https://jitpack.io')
-    }
 }
 
 dependencies {
     compileOnly project(':compileOnly')
-    // implementation project(':api')
     api 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
     api 'jakarta.inject:jakarta.inject-api:2.0.0'
-    // api 'com.github.lenra-io:internal-api-client-lib-java:upgrade-SNAPSHOT'
-    api 'io.lenra:lenra-internal-api-client:1.0.0-SNAPSHOT'
+    api 'io.lenra:lenra-internal-api-client:1.0.0-beta.1'
 
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.codehaus.groovy:groovy-all:2.4.15'
@@ -41,18 +42,6 @@ dependencies {
 group = 'io.lenra'
 description = 'app'
 java.sourceCompatibility = JavaVersion.VERSION_17
-
-publishing {
-    publications {
-        maven(MavenPublication) {
-            groupId project.group
-            artifactId 'app'
-            version project.version
-
-            from components.java
-        }
-    }
-}
 
 var lenraApiBuildDir = "${buildDir}/generated-sources/lenraApi"
 

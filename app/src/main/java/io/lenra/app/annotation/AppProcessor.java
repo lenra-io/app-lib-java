@@ -210,8 +210,8 @@ public class AppProcessor extends AbstractProcessor {
 			out.println(";");
 			out.println();
 
-			out.println("import io.lenra.api.ViewRequest;");
-			out.println("import io.lenra.api.ListenerRequest;");
+			out.println("import io.lenra.app.requests.ViewRequest;");
+			out.println("import io.lenra.app.requests.ListenerRequest;");
 			out.println("import io.lenra.app.exception.NotFoundException;");
 			out.println("import jakarta.enterprise.context.ApplicationScoped;");
 			out.println("import jakarta.inject.Named;");
@@ -234,7 +234,7 @@ public class AppProcessor extends AbstractProcessor {
 			out.println();
 
 			out.println(" @Override");
-			out.println(" public io.lenra.api.Manifest handleManifest() {");
+			out.println(" public io.lenra.app.Manifest handleManifest() {");
 			out.println("   return manifest;");
 			out.println(" }");
 			out.println();
