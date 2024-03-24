@@ -50,6 +50,8 @@ jobs:
 
     - run: sed -E "s/^(version\s*=\s*)(.+)\$/\1${{ env.VERSION }}/" -i gradle.properties
 
+    - run: curl -fsSL https://github.com/lenra-io/api/releases/latest/download/load-api.sh | bash
+
     - name: Build with Gradle
       run: ./gradlew :app:build
 

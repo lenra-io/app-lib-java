@@ -1,4 +1,4 @@
-package io.lenra.api;
+package io.lenra.app;
 
 import static io.lenra.app.components.Components.view;
 import static org.junit.Assert.assertEquals;
@@ -12,9 +12,6 @@ import org.junit.Test;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.lenra.app.Exposer;
-import io.lenra.app.Manifest;
-import io.lenra.app.Route;
 import io.lenra.app.components.View;
 import io.lenra.app.components.view.definitions.Find;
 

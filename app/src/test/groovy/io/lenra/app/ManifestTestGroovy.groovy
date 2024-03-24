@@ -1,11 +1,11 @@
-package io.lenra.api;
+package io.lenra.app;
 
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.lenra.api.components.View;
-import io.lenra.api.components.view.definitions.Find;
+import io.lenra.app.components.View;
+import io.lenra.app.components.view.definitions.Find;
 
 /**
  * Unit test for simple App.

@@ -1,4 +1,4 @@
-package io.lenra.api;
+package io.lenra.app;
 
 import org.junit.Test;
 
