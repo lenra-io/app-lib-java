@@ -40,7 +40,6 @@ dependencies {
 }
 
 group = 'io.lenra'
-description = 'app'
 java.sourceCompatibility = JavaVersion.VERSION_17
 
 var lenraApiBuildDir = "${buildDir}/generated-sources/lenraApi"
