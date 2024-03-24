@@ -261,13 +261,15 @@ public class AppProcessor extends AbstractProcessor {
 			boolean returns)
 			throws IOException {
 		out.println("   System.out.println(\"Handling \" + request.getClass().getSimpleName() + \" : \" + name);");
+		// add try catch block to convert it to runtime exception
+		out.println("   try {");
 		// manage the call of the views
-		out.println("   switch (name) {");
+		out.println("     switch (name) {");
 		handlers.entrySet().forEach(entry -> {
 			var name = entry.getKey();
 			var view = entry.getValue();
-			out.println("     case \"" + name + "\":");
-			out.print("       ");
+			out.println("       case \"" + name + "\":");
+			out.print("         ");
 			if (returns)
 				out.print("return ");
 			out.print(view.getMethod() + "(");
@@ -275,8 +277,7 @@ public class AppProcessor extends AbstractProcessor {
 				out.println();
 				for (var i = 0; i < view.getParameters().size(); i++) {
 					var parameter = view.getParameters().get(i);
-					// mapper.convertValue(, new TypeReference<List<MyDto>>() { })
-					out.print("         mapper.convertValue(");
+					out.print("           mapper.convertValue(");
 					out.print("request.get");
 					out.print(parameter.getType().name().substring(0, 1).toUpperCase());
 					out.print(parameter.getType().name().substring(1).toLowerCase());
@@ -288,14 +289,17 @@ public class AppProcessor extends AbstractProcessor {
 					}
 					out.println();
 				}
-				out.println("			 );");
+				out.println("		  	 );");
 			} else
 				out.println(");");
 			if (!returns)
-				out.println("       break;");
+				out.println("         break;");
 		});
-		out.println("     default:");
-		out.println("       throw new NotFoundException(\"Unknown element: \" + name);");
+		out.println("       default:");
+		out.println("         throw new NotFoundException(\"Unknown element: \" + name);");
+		out.println("     }");
+		out.println("   } catch (Exception e) {");
+		out.println("     throw new RuntimeException(e);");
 		out.println("   }");
 	}
 
