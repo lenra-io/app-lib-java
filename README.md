@@ -36,27 +36,131 @@
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-To incorporate it into your Lenra app project, simply run the following command:
+To incorporate it into your Lenra app project, add the dependency to your `build.gradle` file as follows:
 ```gradle
-npm i @lenra/app-server
+dependencies {
+    def lenra = 'io.lenra:app:1.0.0'
+    implementation lenra
+		annotationProcessor lenra
+		...
+}
 ```
+
+### Annotations
+
+The lib provides a set of annotations to simplify the development of your app:
+- `@AppManifest`: to define the manifest of the app
+- `@AppView`: to create a view
+- `@AppListener`: to create a listener
+
+The `@AppView` and `@AppListener` annotations are used to generate enums at build time that can be used in the app: `ViewName` and `ListenerName`.
+
+### App Manifest
+
+To define the manifest of the app, create a static method in a class annotating it with `@AppManifest`:
+```java
+@AppManifest
+public static Manifest manifest() {
+	return new Manifest()
+			.json(
+					new Exposer(
+							List.of(
+									new Route(
+											"/counter/global",
+											new View(ViewName.LENRA_COUNTER)
+													.find(new Find(Counter.class, Map.of("user", "global")))
+									)
+											.roles(List.of("guest", "user")),
+									new Route(
+											"/counter/me",
+											new View(ViewName.LENRA_COUNTER)
+													.find(new Find(Counter.class, Map.of("user", "@me")))
+									)
+							)
+					)
+			);
+}
+```
+
+### App Views
+
+To create a view, create a static method in a class annotating it with `@AppView`: 
+```java
+// myView JSON view
+@AppView
+public static Object myView() {
+		return Map.of(
+				"key", "value"
+		);
+}
+```
+
+A view can return any type of object, it will be serialized to JSON.
+
+#### View parameters
+
+A view can get parameters:
+```java
+// myView JSON view
+@AppView
+public static Object myView(@AppView.Data List<Counter> counters, @AppView.Props Map<String, Object> props, @AppView.Context Map<String, Object> context) {
+		return Map.of(
+				"key", "value"
+		);
+}
+```
+
+The parameters annotations let you define what are the needed parameters for the view (by default they are resolved in the next order):
+- `@AppView.Data`: the data needed for the view
+- `@AppView.Props`: the props passed to the view
+- `@AppView.Context`: the context of the view
+
+The parameters are mapped to the expected type from JSON.
+
+### App Listeners
+
+To create a listener, create a static method in a class annotating it with `@AppListener`: 
+```java
+// myListener listener
+@AppListener
+public static void myListener(String data, Api api) {
+		// Do something with the data
+}
+```
+
+#### Listener parameters
+
+A listener can get parameters:
+```java
+// myListener listener
+@AppListener
+public static void myListener(@AppListener.Api Api api, @AppListener.Props Map<String, Object> props, @AppListener.Event Map<String, Object> event) {
+		// Do something with the data
+}
+```
+
+The parameters annotations let you define what are the needed parameters for the listener (by default they are resolved in the next order):
+- `@AppListener.Api`: the API to call the Lenra API
+- `@AppListener.Props`: the props passed to the listener
+- `@AppListener.Event`: the event of the listener
+
+The parameters are mapped to the expected type from JSON.
+
 
 ### Lenra API calls
 
-To call a Lenra API from a listener, utilize the `Api` instance provided as the third parameter in your listener function. 
+To call a Lenra API from a listener, utilize the `Api` instance provided as the first parameter in your listener function or by the `@AppListener.Api` annotation. 
 
 You can then create a document using the data API with the following code:
 ```java
-class CustomType extends Data {
-    /**
-     * @param {string} value
-     */
-  constructor(value) {
-    this.value = value;
-  }
+@Getter @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+class CustomData extends Data {
+  private String value;
 }
 
-const myDoc = await api.data.coll(CustomType).createDoc(new CustomType("Hello world"));
+var myDoc = api.data.coll(CustomData.class).createDoc(new CustomData("Hello world"));
 ```
 
 <p align="right">(<a href="#top">back to top</a>)</p>

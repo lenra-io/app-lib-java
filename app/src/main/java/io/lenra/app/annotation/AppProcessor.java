@@ -342,7 +342,7 @@ public class AppProcessor extends AbstractProcessor {
 	}
 
 	private static enum ListenerParameter implements AnnotatedParameter {
-		PROPS(AppListener.Props.class), API(AppListener.Api.class);
+		API(AppListener.Api.class), PROPS(AppListener.Props.class), EVENT(AppListener.Event.class);
 
 		private final Class<? extends Annotation> annotation;
 

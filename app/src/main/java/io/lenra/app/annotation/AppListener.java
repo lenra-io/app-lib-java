@@ -13,9 +13,13 @@ public @interface AppListener {
 
 	@Target(ElementType.PARAMETER)
 	@Retention(RetentionPolicy.SOURCE)
+	public static @interface Api {}
+
+	@Target(ElementType.PARAMETER)
+	@Retention(RetentionPolicy.SOURCE)
 	public static @interface Props {}
 
 	@Target(ElementType.PARAMETER)
 	@Retention(RetentionPolicy.SOURCE)
-	public static @interface Api {}
+	public static @interface Event {}
 }
