@@ -2,7 +2,7 @@
 # https://docs.gradle.org/current/userguide/platforms.html#sub::toml-dependencies-format
 
 [versions]
-com-fasterxml-jackson-core-jackson-databind = "2.16.1"
+com-fasterxml-jackson-core-jackson-databind = "2.17.0"
 com-github-lenra-io-internal-api-client-lib-java = "fix-1234-SNAPSHOT"
 com-google-code-gson-gson = "2.9.1"
 commons-lang-commons-lang = "2.4"
