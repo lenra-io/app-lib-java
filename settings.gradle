@@ -3,3 +3,5 @@
  */
 
 rootProject.name = 'app'
+include 'app'
+include 'compileOnly'
