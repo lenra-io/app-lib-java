@@ -7,7 +7,7 @@ com-github-lenra-io-internal-api-client-lib-java = "fix-1234-SNAPSHOT"
 com-google-code-gson-gson = "2.9.1"
 commons-lang-commons-lang = "2.4"
 junit-junit = "4.11"
-org-projectlombok-lombok = "1.18.30"
+org-projectlombok-lombok = "1.18.32"
 org-springframework-boot-spring-boot-starter-web = "3.2.1"
 
 [libraries]
